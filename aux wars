@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Aux Wars</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0a;
+  --surface: #161616;
+  --surface2: #1e1e1e;
+  --surface3: #2a2a2a;
+  --green: #1db954;
+  --green-dim: #158a3e;
+  --green-bright: #1ed760;
+  --blue: #3b8beb;
+  --blue-dim: #2563c7;
+  --blue-bright: #60a5fa;
+  --blue-glow: rgba(59,139,235,.25);
+  --text: #ffffff;
+  --text2: #b3b3b3;
+  --text3: #535353;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --r: 12px;
+  --r-sm: 8px;
+  --nav: 68px;
+  --ease: cubic-bezier(0.4,0,0.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased}
+ 
+/* ══ VIEWS ══ */
+.view{position:fixed;inset:0;bottom:calc(var(--nav) + env(safe-area-inset-bottom));overflow-y:auto;overflow-x:hidden;opacity:0;pointer-events:none;transform:translateY(14px);transition:opacity .22s ease,transform .22s ease}
+.view::-webkit-scrollbar{width:0}
+.view.active{opacity:1;pointer-events:all;transform:translateY(0)}
+#view-game{bottom:0;z-index:100}
+#view-wheel-picker{z-index:100}
+#view-builder{z-index:40}
+.nav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--nav) + env(safe-area-inset-bottom));background:rgba(8,8,8,0.96);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);display:flex;align-items:flex-start;justify-content:space-around;padding:8px 4px env(safe-area-inset-bottom);z-index:9000;transition:transform .3s ease}
+/* ══ NAV ══ */
+.nav.hidden{transform:translateY(100%)}
+.nav-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 18px;background:none;border:none;cursor:pointer;color:var(--text3);transition:color .15s;font-family:'DM Sans',sans-serif;min-width:60px}
+.nav-btn.active{color:var(--green)}
+.nav-btn svg{width:22px;height:22px;stroke-width:1.8}
+.nav-btn span{font-size:10px;font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+ 
+/* ══ SHARED COMPONENTS ══ */
+.inp{width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;padding:14px 16px;border-radius:var(--r);outline:none;transition:border-color .15s;-webkit-appearance:none}
+.inp:focus{border-color:var(--green)}
+.inp::placeholder{color:var(--text3)}
+.btn{font-family:'DM Sans',sans-serif;font-weight:600;border:none;cursor:pointer;border-radius:var(--r);transition:all .15s;white-space:nowrap;-webkit-appearance:none}
+.btn:active{transform:scale(0.96)}
+.btn-green{background:var(--green);color:#000;padding:15px 24px;font-size:15px;box-shadow:0 4px 20px rgba(29,185,84,.28)}
+.btn-green:active{background:var(--green-bright)}
+.btn-outline{background:transparent;color:var(--text2);border:1px solid var(--border2);padding:14px 20px;font-size:14px}
+.btn-ghost{background:transparent;color:var(--text2);padding:10px 16px;font-size:14px}
+.btn-sm{padding:10px 18px;font-size:13px}
+.btn-icon{background:var(--surface2);border:none;color:var(--text2);width:40px;height:40px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-size:16px;flex-shrink:0}
+.btn-icon:active{background:var(--surface3)}
+.section-title{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:14px}
+.divider{height:1px;background:var(--border);margin:20px 0}
+.page-pad{padding:52px 20px 24px}
+ 
+/* ══ HOME ══ */
+.hero{padding:52px 20px 28px;background:linear-gradient(180deg,rgba(29,185,84,.09) 0%,transparent 100%)}
+.hero h1{font-family:'Syne',sans-serif;font-size:40px;font-weight:800;letter-spacing:-1.5px;line-height:1;margin-bottom:6px}
+.hero h1 em{color:var(--green);font-style:normal}
+.hero p{color:var(--text2);font-size:14px;line-height:1.55}
+.home-body{padding:0 20px 100px}
+.section-title-home{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin:28px 0 14px}
+ 
+/* players */
+.players-wrap{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;min-height:36px}
+.p-chip{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border2);border-radius:100px;padding:7px 10px 7px 8px;font-size:13px;font-weight:500}
+.p-av{width:22px;height:22px;border-radius:50%;background:var(--green);color:#000;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.p-rm{background:none;border:none;cursor:pointer;color:var(--text3);font-size:17px;line-height:1;padding:0 0 0 2px;transition:color .15s}
+.p-rm:active{color:#ff4444}
+.inp-row{display:flex;gap:8px}
+.inp-row .inp{font-size:14px;padding:12px 14px}
+ 
+/* settings rows */
+.setting-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:15px 18px;margin-bottom:10px;cursor:pointer;transition:border-color .15s;active:border-color var(--border2)}
+.setting-row:active{border-color:var(--border2)}
+.setting-row label{font-size:14px;color:var(--text2);pointer-events:none}
+.setting-right{display:flex;align-items:center;gap:10px}
+.pts-val{font-size:18px;font-weight:700;min-width:26px;text-align:center}
+.wheel-label-btn{font-size:13px;color:var(--green);font-weight:600;background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:4px}
+ 
+/* play card */
+.play-card{background:linear-gradient(135deg,#1a6b3a,#0d4523);border-radius:18px;padding:22px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:transform .2s,box-shadow .2s;box-shadow:0 8px 28px rgba(29,185,84,.18);margin-top:8px;border:1px solid rgba(29,185,84,.15)}
+.play-card:active{transform:scale(0.98)}
+.play-card h3{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;margin-bottom:3px}
+.play-card p{font-size:12px;color:rgba(255,255,255,.65);line-height:1.4}
+.play-arrow{font-size:32px;opacity:.8}
+ 
+/* ══ WHEEL PICKER (fullscreen carousel) ══ */
+#view-wheel-picker{background:var(--bg);display:flex;flex-direction:column}
+.picker-header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0}
+.picker-header h2{font-family:'Syne',sans-serif;font-size:20px;font-weight:800}
+.picker-close{background:none;border:none;cursor:pointer;color:var(--text2);font-size:24px;line-height:1;padding:4px;border-radius:50%;transition:color .15s}
+.picker-close:active{color:var(--text)}
+ 
+/* carousel */
+.carousel-outer{flex:1;overflow:hidden;position:relative;touch-action:pan-y}
+.carousel-track{display:flex;height:100%;transition:transform .35s cubic-bezier(0.25,0.46,0.45,0.94);will-change:transform}
+.carousel-slide{flex:0 0 100%;height:100%;overflow-y:auto;padding:24px 20px 80px}
+.carousel-slide::-webkit-scrollbar{width:0}
+ 
+/* slide header */
+.slide-wheel-header{text-align:center;margin-bottom:24px}
+.slide-wheel-emoji{font-size:56px;margin-bottom:10px;display:block;animation:wheelFloat 3s ease-in-out infinite}
+@keyframes wheelFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.slide-wheel-name{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;margin-bottom:4px}
+.slide-wheel-desc{font-size:13px;color:var(--text2);line-height:1.5}
+.slide-wheel-count{display:inline-block;background:var(--surface);border:1px solid var(--border2);border-radius:100px;padding:4px 12px;font-size:11px;font-weight:600;color:var(--text3);margin-top:8px}
+ 
+.cat-pill-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.cat-pill{background:var(--surface);border:1px solid var(--border);border-radius:100px;padding:7px 14px;font-size:12px;color:var(--text2);line-height:1.3}
+ 
+.select-this-btn{width:100%;background:var(--green);color:#000;font-family:'DM Sans',sans-serif;font-weight:700;font-size:15px;padding:16px;border:none;border-radius:100px;cursor:pointer;margin-top:24px;box-shadow:0 4px 20px rgba(29,185,84,.3);transition:all .15s}
+.select-this-btn:active{background:var(--green-bright);transform:scale(0.98)}
+.select-this-btn.selected-state{background:var(--surface3);color:var(--text2)}
+ 
+/* carousel nav arrows */
+.carousel-nav{display:flex;align-items:center;justify-content:center;gap:16px;padding:16px;border-top:1px solid var(--border);flex-shrink:0}
+.carousel-arrow{background:var(--surface);border:1px solid var(--border2);color:var(--text);width:44px;height:44px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.carousel-arrow:active{background:var(--surface3)}
+.carousel-arrow:disabled{opacity:.3;cursor:not-allowed}
+.carousel-dots{display:flex;gap:6px;align-items:center}
+.c-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);transition:all .2s;cursor:pointer}
+.c-dot.active{width:20px;border-radius:3px;background:var(--green)}
+ 
+/* custom wheel card in carousel */
+.custom-wheel-card{background:var(--surface);border:1px dashed var(--border2);border-radius:16px;padding:20px;margin-bottom:12px;display:flex;align-items:center;gap:14px;position:relative;cursor:pointer;transition:border-color .15s}
+.custom-wheel-card:active{border-color:rgba(255,255,255,.25)}
+.custom-wheel-card.active-wheel{border-color:var(--green);border-style:solid}
+.cwc-emoji{font-size:28px;flex-shrink:0}
+.cwc-info{flex:1;min-width:0}
+.cwc-info h4{font-size:15px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cwc-info p{font-size:12px;color:var(--text3)}
+.cwc-actions{display:flex;gap:6px;flex-shrink:0}
+ 
+/* ══ BUILDER ══ */
+#view-builder{background:var(--bg);display:flex;flex-direction:column}
+.builder-header{padding:16px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.builder-header h2{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;flex:1}
+.builder-body{flex:1;overflow-y:auto;padding:20px;padding-bottom:100px}
+.builder-body::-webkit-scrollbar{width:0}
+.emoji-name-row{display:flex;gap:10px;margin-bottom:20px;align-items:stretch}
+.emoji-pick-btn{width:56px;height:56px;border-radius:var(--r);background:var(--surface);border:1px solid var(--border2);font-size:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:border-color .15s}
+.emoji-pick-btn:active{border-color:var(--green)}
+.cat-item{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 14px;margin-bottom:8px;animation:slideIn .15s ease}
+@keyframes slideIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+.cat-item span{flex:1;font-size:13px;color:var(--text2);word-break:break-word}
+.cat-rm{background:none;border:none;cursor:pointer;color:var(--text3);font-size:20px;line-height:1;padding:0;flex-shrink:0;transition:color .15s}
+.cat-rm:active{color:#ff4444}
+.add-cat-row{display:flex;gap:8px;margin-bottom:16px}
+.add-cat-row .inp{font-size:14px;padding:12px 14px}
+.builder-footer{padding:16px 20px 20px;border-top:1px solid var(--border);display:flex;gap:10px;flex-shrink:0;background:var(--bg);margin-bottom:0}
+.builder-footer .btn-green{flex:1}
+ 
+/* ══ RULES ══ */
+#view-rules{padding-bottom:80px}
+.rules-hero{padding:52px 20px 28px;background:linear-gradient(180deg,rgba(29,185,84,.08) 0%,transparent 100%)}
+.rules-hero h1{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;letter-spacing:-1px;margin-bottom:6px}
+.rules-hero p{color:var(--text2);font-size:14px}
+.rules-body{padding:0 20px}
+.rule-block{margin-bottom:28px}
+.rule-block h3{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;margin-bottom:10px;color:var(--green)}
+.rule-block p,.rule-block li{font-size:14px;color:var(--text2);line-height:1.65}
+.rule-block ul,.rule-block ol{padding-left:20px;display:flex;flex-direction:column;gap:8px}
+.rule-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:10px;display:flex;gap:14px;align-items:flex-start}
+.rule-num{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--green);flex-shrink:0;line-height:1;min-width:28px}
+.rule-card p{font-size:14px;color:var(--text2);line-height:1.6}
+.tip-box{background:rgba(29,185,84,.07);border:1px solid rgba(29,185,84,.2);border-radius:var(--r);padding:14px 16px;margin-bottom:10px}
+.tip-box p{font-size:13px;color:var(--text2);line-height:1.55}
+.tip-box p strong{color:var(--green)}
+ 
+/* ══ GAME ══ */
+#view-game{background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.game-topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.game-pills{display:flex;gap:7px;align-items:center}
+.game-pill{background:var(--surface2);border-radius:100px;padding:5px 13px;font-size:11px;font-weight:600;color:var(--text2)}
+.double-pill{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;display:none;animation:pulsePill .8s ease-in-out infinite alternate}
+@keyframes pulsePill{from{opacity:.85}to{opacity:1;box-shadow:0 0 12px rgba(239,68,68,.6)}}
+.topbar-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text3);letter-spacing:-.3px}
+ 
+/* mobile layout */
+.game-mobile{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.game-desktop{display:none}
+ 
+/* TOP HALF: wheel + category + spin */
+.game-center{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 20px 12px}
+.wheel-outer{position:relative;width:min(160px,38vw);height:min(160px,38vw)}
+canvas#mainWheel,canvas#mainWheelD{width:100%;height:100%;border-radius:50%;display:block}
+.wheel-needle{position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:16px solid var(--green);filter:drop-shadow(0 0 6px rgba(29,185,84,.8))}
+.cat-display{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 18px;text-align:center}
+.cat-display-label{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:5px}
+.cat-display-text{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--green-bright);line-height:1.35;min-height:38px;display:flex;align-items:center;justify-content:center;transition:color .3s}
+.cat-display-text.flash{color:var(--green)}
+@keyframes blinkCat{0%,100%{opacity:1}50%{opacity:.1}}
+.cat-display-text.spinning{animation:blinkCat .07s infinite}
+.spin-btn{width:100%;background:var(--green);color:#000;font-family:'DM Sans',sans-serif;font-weight:700;font-size:15px;padding:13px;border:none;border-radius:100px;cursor:pointer;box-shadow:0 4px 16px rgba(29,185,84,.3),0 0 16px rgba(29,185,84,.12);transition:all .15s;letter-spacing:.2px}
+.spin-btn:active{background:var(--green-bright);transform:scale(0.98)}
+.spin-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+ 
+/* BOTTOM HALF: scrollable info panel */
+.game-bottom{flex:1;overflow-y:auto;background:var(--bg);border-top:1px solid var(--border)}
+.game-bottom::-webkit-scrollbar{width:0}
+.game-bottom-inner{padding:14px 16px 20px;display:flex;flex-direction:column;gap:14px}
+ 
+/* ── Judge banner ── */
+.gb-judge{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(29,185,84,.1),rgba(29,185,84,.04));border:1px solid rgba(29,185,84,.25);border-radius:14px;padding:12px 16px}
+.judge-av-mini{width:40px;height:40px;border-radius:50%;background:var(--green);color:#000;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 14px rgba(29,185,84,.45)}
+.judge-text-wrap{flex:1;min-width:0}
+.judge-lbl{font-size:10px;color:rgba(29,185,84,.65);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:2px}
+.judge-nm-mini{font-size:17px;font-weight:700;color:var(--green);font-family:'Syne',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.judge-badge{font-size:11px;color:var(--text3);margin-top:2px}
+ 
+/* ── Scoreboard ── */
+.gb-scores-wrap{}
+.gb-scores-title{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
+.gb-scores{display:flex;flex-direction:column;gap:6px}
+.score-chip{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
+.score-chip.is-judge{opacity:.5;border-style:dashed}
+.sc-av-mini{width:30px;height:30px;border-radius:50%;background:var(--surface3);color:var(--text2);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sc-name-mini{flex:1;font-size:14px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-pts-mini{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--green-bright);min-width:32px;text-align:right}
+.sc-fire{font-size:13px;margin-left:2px}
+.sc-bar-wrap{height:2px;background:var(--surface3);border-radius:2px;margin-top:4px;width:100%}
+.sc-bar-mini{height:100%;background:var(--green);border-radius:2px;transition:width .4s;box-shadow:0 0 4px rgba(29,185,84,.5)}
+ 
+/* ── Award section ── */
+.gb-award-wrap{}
+.gb-award-title{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
+.award-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}
+.award-btn{background:var(--surface);border:1.5px solid var(--border2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;padding:14px 8px;border-radius:12px;cursor:pointer;transition:all .2s;text-align:center;line-height:1}
+.award-btn:not(:disabled):active{background:rgba(29,185,84,.12);border-color:var(--green);color:var(--green);transform:scale(0.96)}
+.award-btn:disabled{cursor:not-allowed}
+ 
+/* ── Next round button ── */
+.next-btn{width:100%;background:var(--surface);border:1.5px solid var(--border2);color:var(--text3);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;padding:14px;border-radius:12px;cursor:not-allowed;transition:all .3s;opacity:.3;letter-spacing:.2px}
+.next-btn.ready{color:var(--text);border-color:rgba(255,255,255,.22);opacity:1;cursor:pointer;background:var(--surface2)}
+.next-btn.ready:active{background:var(--surface3)}
+ 
+/* desktop layout */
+@media(min-width:680px){
+  .game-mobile{display:none}
+  .game-desktop{flex:1;display:grid;grid-template-columns:1fr 280px;overflow:hidden;min-height:0}
+  .game-sidebar{display:flex;flex-direction:column;overflow-y:auto;padding:16px;gap:12px;background:var(--bg);border-left:1px solid var(--border)}
+  .game-sidebar::-webkit-scrollbar{width:0}
+  .game-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px}
+  .game-panel-title{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+  .judge-row{display:flex;align-items:center;gap:10px;background:rgba(29,185,84,.06);border:1px solid rgba(29,185,84,.18);border-radius:var(--r-sm);padding:10px 12px}
+  .judge-av{width:30px;height:30px;border-radius:50%;background:var(--green);color:#000;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .judge-nm{font-size:13px;font-weight:600;color:var(--green)}
+  .judge-sub{font-size:10px;color:var(--text3)}
+  .score-item{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)}
+  .score-item:last-child{border-bottom:none}
+  .sc-av{width:24px;height:24px;border-radius:50%;background:var(--surface3);color:var(--text2);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .sc-info{flex:1;min-width:0}
+  .sc-name{font-size:12px;font-weight:500}
+  .sc-bar-wrap{height:2px;background:var(--surface3);border-radius:2px;margin-top:3px}
+  .sc-bar{height:100%;background:var(--green);border-radius:2px;transition:width .4s}
+  .sc-pts{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--green-bright)}
+  .award-grid-d{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px}
+  .award-btn-d{background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:10px 8px;border-radius:var(--r-sm);cursor:pointer;transition:all .15s;text-align:center;width:100%}
+  .award-btn-d:active{background:rgba(29,185,84,.15);border-color:var(--green);color:var(--green)}
+  .award-btn-d:disabled{cursor:not-allowed;opacity:.3}
+  .next-btn-d{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text3);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:11px;border-radius:var(--r-sm);cursor:not-allowed;transition:all .3s;opacity:.35}
+  .next-btn-d.ready{color:var(--text2);opacity:1;cursor:pointer}
+  .next-btn-d.ready:active{background:var(--surface3);color:var(--text)}
+}
+ 
+/* ══ BLUE ACCENTS — HOME ══ */
+.hero{background:linear-gradient(135deg,rgba(29,185,84,.1) 0%,rgba(59,139,235,.08) 50%,transparent 100%)!important}
+.hero h1 em{background:linear-gradient(90deg,var(--green),var(--blue-bright));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.section-title-home{color:var(--blue-bright)!important;opacity:.8}
+.p-chip{border-color:rgba(59,139,235,.25)!important}
+.p-av{background:linear-gradient(135deg,var(--green),var(--blue))!important;box-shadow:0 0 8px rgba(59,139,235,.3)}
+.btn-green{background:linear-gradient(135deg,var(--green),#1a7fd4)!important;box-shadow:0 4px 20px rgba(29,185,84,.28),0 0 12px rgba(59,139,235,.15)!important}
+.play-card{background:linear-gradient(135deg,#1a5c3a,#163a6b)!important;border-color:rgba(59,139,235,.2)!important;box-shadow:0 8px 28px rgba(29,185,84,.12),0 4px 20px rgba(59,139,235,.12)!important}
+.setting-row{border-color:rgba(59,139,235,.12)!important}
+.pts-val{color:var(--blue-bright)!important}
+.wheel-label-btn{color:var(--blue-bright)!important}
+ 
+/* ══ BLUE ACCENTS — WHEEL PICKER ══ */
+.picker-header h2{background:linear-gradient(90deg,var(--text),var(--blue-bright));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.c-dot.active{background:var(--blue)!important;box-shadow:0 0 6px rgba(59,139,235,.5)}
+.carousel-arrow{border-color:rgba(59,139,235,.2)!important}
+.carousel-arrow:not(:disabled){color:var(--blue-bright)!important}
+.slide-wheel-count{border-color:rgba(59,139,235,.25)!important;color:var(--blue-bright)!important;background:rgba(59,139,235,.07)!important}
+.cat-pill{border-color:rgba(59,139,235,.2)!important;background:rgba(59,139,235,.05)!important}
+.custom-wheel-card.active-wheel{border-color:var(--blue)!important;box-shadow:0 0 12px rgba(59,139,235,.2)}
+/* Round pill — blue */
+#roundPill{background:rgba(59,139,235,.15);color:var(--blue-bright);border:1px solid rgba(59,139,235,.3)}
+ 
+/* Category label — blue */
+.cat-display{border-color:rgba(59,139,235,.2)}
+.cat-display-label{color:var(--blue-bright)!important}
+ 
+/* Score progress bar — blue */
+.sc-bar-mini{background:var(--blue)!important;box-shadow:0 0 6px var(--blue-glow)!important}
+.sc-bar{background:var(--blue)!important;box-shadow:0 0 6px var(--blue-glow)!important}
+ 
+/* Next round button when ready — blue accent border + glow */
+.next-btn.ready{border-color:var(--blue)!important;color:var(--blue-bright)!important;box-shadow:0 0 12px var(--blue-glow)}
+.next-btn-d.ready{border-color:var(--blue)!important;color:var(--blue-bright)!important}
+ 
+/* Wheel alternate segments — blue tinted */
+/* (handled in drawWheel JS below) */
+ 
+/* Judge badge text — blue */
+.judge-badge{color:var(--blue-bright);opacity:.7}
+ 
+/* Rules page hero accent */
+.rules-hero{background:linear-gradient(180deg,rgba(59,139,235,.07) 0%,transparent 100%)!important}
+.rule-num{color:var(--blue-bright)!important}
+ 
+/* Home hero subtle blue tint strip */
+.hero{background:linear-gradient(180deg,rgba(29,185,84,.06) 0%,rgba(59,139,235,.04) 60%,transparent 100%)!important}
+ 
+/* Wheel picker selected indicator */
+.select-this-btn.selected{background:var(--blue)!important;box-shadow:0 4px 16px var(--blue-glow)!important}
+ 
+/* Input focus — blue */
+.inp:focus{border-color:var(--blue)!important;box-shadow:0 0 0 2px rgba(59,139,235,.15)}
+.btn-green{box-shadow:0 4px 20px rgba(29,185,84,.28),0 0 12px rgba(29,185,84,.15)}
+.btn-green:hover{box-shadow:0 4px 28px rgba(29,185,84,.4),0 0 20px rgba(29,185,84,.2)}
+.play-card{box-shadow:0 8px 28px rgba(29,185,84,.18),0 0 24px rgba(29,185,84,.08)}
+.play-card:active{box-shadow:0 4px 16px rgba(29,185,84,.2),0 0 16px rgba(29,185,84,.1)}
+.wheel-needle{filter:drop-shadow(0 0 6px rgba(29,185,84,.8)) drop-shadow(0 2px 4px rgba(29,185,84,.5))}
+canvas#mainWheel{box-shadow:0 0 20px rgba(29,185,84,.12),0 0 40px rgba(29,185,84,.06)}
+.judge-row,.judge-mini{box-shadow:0 0 12px rgba(29,185,84,.08)}
+.spin-btn{box-shadow:0 4px 16px rgba(29,185,84,.3),0 0 16px rgba(29,185,84,.12)}
+.spin-btn:active{box-shadow:0 2px 10px rgba(29,185,84,.25),0 0 10px rgba(29,185,84,.1)}
+.select-this-btn{box-shadow:0 4px 16px rgba(29,185,84,.25),0 0 14px rgba(29,185,84,.1)}
+.judge-av,.judge-av-mini,.p-av{box-shadow:0 0 8px rgba(29,185,84,.35)}
+.award-btn:not(:disabled):hover,.award-btn-d:not(:disabled):hover{box-shadow:0 0 10px rgba(29,185,84,.2)}
+.sc-bar{box-shadow:0 0 6px rgba(29,185,84,.4)}
+ 
+/* nav active dot glow */
+.nav-btn.active svg{filter:drop-shadow(0 0 4px rgba(29,185,84,.6))}
+ 
+/* ══ WIN OVERLAY ══ */
+.win-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.93);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s ease;flex-direction:column;padding:24px;text-align:center}
+.win-overlay.show{opacity:1;pointer-events:all}
+.win-trophy{font-size:64px;animation:winFloat 1.2s ease infinite}
+@keyframes winFloat{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-14px) rotate(5deg)}}
+.win-title{font-family:'Syne',sans-serif;font-size:48px;font-weight:800;color:var(--green);letter-spacing:-2px;margin:10px 0 2px}
+.win-name{font-family:'Syne',sans-serif;font-size:28px;font-weight:700;margin-bottom:4px}
+.win-sub{font-size:13px;color:var(--text3);margin-bottom:28px}
+.win-scores{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;width:100%;max-width:340px;margin-bottom:22px}
+.win-scores h4{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:12px}
+.win-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.win-row:last-child{border-bottom:none}
+.win-rank{font-size:18px;width:26px;text-align:center}
+.win-rname{flex:1;font-size:14px;font-weight:500}
+.win-rpts{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--green-bright)}
+.win-actions{display:flex;gap:10px}
+.win-actions .btn{padding:14px 24px;font-size:14px}
+ 
+/* ══ EMOJI MODAL ══ */
+.modal-backdrop{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:none;align-items:flex-end;justify-content:center}
+.modal-backdrop.open{display:flex}
+.modal-sheet{background:var(--surface);border:1px solid var(--border2);border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:480px;max-height:55vh;overflow-y:auto}
+.modal-sheet::-webkit-scrollbar{width:0}
+.modal-sheet h4{font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text2)}
+.emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.e-opt{font-size:22px;padding:8px 4px;border-radius:8px;cursor:pointer;text-align:center;transition:background .1s}
+.e-opt:active{background:var(--surface2)}
+ 
+/* ══ TOAST ══ */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--surface2);border:1px solid var(--border2);border-radius:100px;padding:10px 20px;font-size:13px;font-weight:500;color:var(--text);z-index:500;opacity:0;transition:all .2s ease;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+ 
+/* ══ CONFETTI ══ */
+.confetti-piece{position:fixed;width:8px;height:8px;border-radius:2px;animation:fall linear forwards;z-index:9999;pointer-events:none}
+@keyframes fall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+ 
+/* ══ DESKTOP LAYOUT for game ══ */
+@media(min-width:680px){
+  .game-scroll{display:grid;grid-template-columns:1fr 300px;grid-template-rows:auto auto auto auto;gap:14px;align-items:start}
+  .wheel-wrap{grid-column:1;grid-row:1}
+  .cat-display{grid-column:1;grid-row:2}
+  .spin-wrap{grid-column:1;grid-row:3}
+  .game-panels{grid-column:2;grid-row:1/5;gap:14px}
+}
+</style>
+</head>
+<body>
+ 
+<!-- ══ NAV ══ -->
+<nav class="nav" id="mainNav">
+  <button class="nav-btn active" id="nav-home" onclick="showView('home')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+    <span>Home</span>
+  </button>
+  <button class="nav-btn" id="nav-wheels" onclick="openWheelPicker()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+    <span>Wheels</span>
+  </button>
+  <button class="nav-btn" id="nav-builder" onclick="openBuilder(null)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    <span>Create</span>
+  </button>
+  <button class="nav-btn" id="nav-rules" onclick="showView('rules')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    <span>Rules</span>
+  </button>
+</nav>
+ 
+<!-- ══ HOME ══ -->
+<div class="view active" id="view-home">
+  <div class="hero">
+    <h1>Aux <em>Wars</em></h1>
+    <p>The music party game. Pick songs. Get judged. Win arguments.</p>
+  </div>
+  <div class="home-body">
+    <div class="section-title-home">Players</div>
+    <div class="players-wrap" id="playersWrap">
+      <span style="color:var(--text3);font-size:13px">Add at least 2 players</span>
+    </div>
+    <div class="inp-row">
+      <input class="inp" type="text" id="playerInput" placeholder="Player name..." maxlength="18" autocomplete="off">
+      <button class="btn btn-green btn-sm" onclick="addPlayer()">Add</button>
+    </div>
+ 
+    <div class="section-title-home" style="margin-top:28px">Settings</div>
+    <div class="setting-row">
+      <label>Points to win</label>
+      <div class="setting-right">
+        <button class="btn-icon" style="width:34px;height:34px;font-size:18px" onclick="adjPts(-1)">−</button>
+        <span class="pts-val" id="ptsVal">7</span>
+        <button class="btn-icon" style="width:34px;height:34px;font-size:18px" onclick="adjPts(1)">+</button>
+      </div>
+    </div>
+    <div class="setting-row" onclick="openWheelPicker()">
+      <label>Active wheel</label>
+      <div class="setting-right">
+        <span class="wheel-label-btn" id="activeWheelLabel">🎲 All Categories</span>
+        <span style="color:var(--text3);font-size:18px">›</span>
+      </div>
+    </div>
+ 
+    <div class="play-card" onclick="startGame()">
+      <div>
+        <h3>Start Game</h3>
+        <p id="playCardSub">Add players to begin</p>
+      </div>
+      <div class="play-arrow">▶</div>
+    </div>
+  </div>
+</div>
+ 
+<!-- ══ WHEEL PICKER ══ -->
+<div class="view" id="view-wheel-picker">
+  <div class="picker-header">
+    <h2>Choose Wheel</h2>
+    <button class="picker-close" onclick="closeWheelPicker()">✕</button>
+  </div>
+  <div class="carousel-outer" id="carouselOuter">
+    <div class="carousel-track" id="carouselTrack"></div>
+  </div>
+  <div class="carousel-nav">
+    <button class="carousel-arrow" id="arrowLeft" onclick="carouselGo(-1)">‹</button>
+    <div class="carousel-dots" id="carouselDots"></div>
+    <button class="carousel-arrow" id="arrowRight" onclick="carouselGo(1)">›</button>
+  </div>
+</div>
+ 
+<!-- ══ BUILDER ══ -->
+<div class="view" id="view-builder">
+  <div class="builder-header">
+    <button class="btn-icon" onclick="closeBuilder()">‹</button>
+    <h2 id="builderTitle">New Wheel</h2>
+    <button class="btn btn-ghost btn-sm" style="color:var(--text3)" onclick="resetBuilderState()">Clear</button>
+  </div>
+  <div class="builder-body">
+    <div class="section-title">Wheel Info</div>
+    <div class="emoji-name-row">
+      <div class="emoji-pick-btn" id="emojiPickBtn" onclick="openEmojiModal()">🎵</div>
+      <input class="inp" type="text" id="wheelNameInput" placeholder="Wheel name..." maxlength="28" autocomplete="off" style="height:56px">
+    </div>
+ 
+    <div class="section-title">Categories <span id="catCount" style="color:var(--text3);font-weight:400;font-size:10px">(0)</span></div>
+    <div id="catList"></div>
+    <div class="add-cat-row">
+      <input class="inp" type="text" id="catInput" placeholder="Type a category and press Add..." maxlength="80" autocomplete="off">
+      <button class="btn btn-outline btn-sm" onclick="addCat()">Add</button>
+    </div>
+  </div>
+  <div class="builder-footer">
+    <button class="btn btn-outline" onclick="closeBuilder()" style="padding:14px 20px">Cancel</button>
+    <button class="btn btn-green" onclick="saveWheel()">Save Wheel</button>
+  </div>
+</div>
+ 
+<!-- ══ RULES ══ -->
+<div class="view" id="view-rules">
+  <div class="rules-hero">
+    <h1>How to Play</h1>
+    <p>Aux Wars in 60 seconds</p>
+  </div>
+  <div class="rules-body">
+    <div class="rule-block">
+      <h3>The Setup</h3>
+      <div class="rule-card"><div class="rule-num">1</div><p>Add all players on the Home screen. You need at least 2, but it's way more fun with 4+.</p></div>
+      <div class="rule-card"><div class="rule-num">2</div><p>Pick a wheel theme — each wheel has a different vibe. Or go full chaos with All Categories.</p></div>
+      <div class="rule-card"><div class="rule-num">3</div><p>Set how many points it takes to win. 5 is quick, 10 is a full night.</p></div>
+    </div>
+    <div class="rule-block">
+      <h3>Each Round</h3>
+      <div class="rule-card"><div class="rule-num">4</div><p>One player is the <strong style="color:var(--green)">Judge 🎤</strong> for the round. They don't submit a song — they decide.</p></div>
+      <div class="rule-card"><div class="rule-num">5</div><p>Hit <strong style="color:var(--green)">Spin</strong>. Whatever category it lands on is the prompt for the round.</p></div>
+      <div class="rule-card"><div class="rule-num">6</div><p>Every non-judge player picks a real song for that category. Name it out loud or show it to the judge.</p></div>
+      <div class="rule-card"><div class="rule-num">7</div><p>The judge picks their favorite. Tap that player's name to award the point. The judge rotates every round.</p></div>
+    </div>
+    <div class="rule-block">
+      <h3>Special Rounds</h3>
+      <div class="tip-box"><p><strong>⚡ Double Points</strong> — There's a 20% chance any spin triggers double points. The banner will appear. Win this round and get 2 points instead of 1.</p></div>
+      <div class="tip-box"><p><strong>🔥 Hot Streak</strong> — Win 3+ rounds in a row and fire emojis stack up next to your name. Pure psychological warfare.</p></div>
+    </div>
+    <div class="rule-block">
+      <h3>House Rules (Optional)</h3>
+      <div class="tip-box"><p><strong>No repeats</strong> — If someone already played a song earlier in the night, it's dead. Pick something else.</p></div>
+      <div class="tip-box"><p><strong>30-second rule</strong> — Everyone must name their song within 30 seconds or they're disqualified for that round.</p></div>
+      <div class="tip-box"><p><strong>Judge's veto</strong> — Once per game, the judge can declare no winner and spin again. Use it wisely.</p></div>
+      <div class="tip-box"><p><strong>Custom Wheels</strong> — Hit the Create tab to build your own wheel with inside jokes, specific genres, or anything you want.</p></div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+</div>
+ 
+<!-- ══ GAME ══ -->
+<div class="view" id="view-game">
+  <div class="game-topbar">
+    <div class="game-pills">
+      <button class="btn-icon" style="width:34px;height:34px;font-size:14px" onclick="exitGame()">✕</button>
+      <div class="game-pill" id="roundPill">Round 1</div>
+      <div class="game-pill double-pill" id="doublePill">⚡ 2×</div>
+    </div>
+    <div class="topbar-title">Aux Wars</div>
+    <div style="width:60px"></div>
+  </div>
+ 
+  <!-- MOBILE: stacked layout -->
+  <div class="game-mobile">
+    <!-- Wheel area -->
+    <div class="game-center">
+      <div class="wheel-wrap">
+        <div class="wheel-outer">
+          <canvas id="mainWheel" width="300" height="300"></canvas>
+          <div class="wheel-needle"></div>
+        </div>
+      </div>
+      <div class="cat-display">
+        <div class="cat-display-label">Category</div>
+        <div class="cat-display-text" id="catText">Spin the wheel</div>
+      </div>
+      <button class="spin-btn" id="spinBtn" onclick="spinWheel()">Spin</button>
+    </div>
+ 
+    <!-- Bottom panel -->
+    <div class="game-bottom">
+      <div class="game-bottom-inner">
+        <!-- Judge banner -->
+        <div class="gb-judge">
+          <div class="judge-av-mini" id="judgeAv">?</div>
+          <div class="judge-text-wrap">
+            <div class="judge-lbl">🎤 Judge this round</div>
+            <div class="judge-nm-mini" id="judgeNm">—</div>
+            <div class="judge-badge">Listens to all songs, picks the winner</div>
+          </div>
+        </div>
+        <!-- Scoreboard -->
+        <div class="gb-scores-wrap">
+          <div class="gb-scores-title">Scoreboard</div>
+          <div class="gb-scores" id="scoresStrip"></div>
+        </div>
+        <!-- Award -->
+        <div class="gb-award-wrap">
+          <div class="gb-award-title">👑 Award the point to</div>
+          <div class="award-grid" id="awardGrid"></div>
+        </div>
+        <!-- Next -->
+        <button class="next-btn" onclick="nextRound()">Done — Next Round →</button>
+      </div>
+    </div>
+  </div>
+ 
+  <!-- DESKTOP: side-by-side -->
+  <div class="game-desktop">
+    <div class="game-center">
+      <div class="wheel-wrap">
+        <div class="wheel-outer">
+          <canvas id="mainWheelD" width="300" height="300"></canvas>
+          <div class="wheel-needle"></div>
+        </div>
+      </div>
+      <div class="cat-display">
+        <div class="cat-display-label">Category</div>
+        <div class="cat-display-text" id="catTextD">Spin the wheel</div>
+      </div>
+      <button class="spin-btn" id="spinBtnD" onclick="spinWheel()" style="max-width:400px;width:100%">Spin</button>
+    </div>
+    <div class="game-sidebar">
+      <div class="game-panel">
+        <div class="game-panel-title">Judge</div>
+        <div class="judge-row">
+          <div class="judge-av" id="judgeAvD">?</div>
+          <div><div class="judge-nm" id="judgeNmD">—</div><div class="judge-sub">Picks the winner</div></div>
+        </div>
+      </div>
+      <div class="game-panel">
+        <div class="game-panel-title">Scores</div>
+        <div id="scoreListD"></div>
+      </div>
+      <div class="game-panel">
+        <div class="game-panel-title">Award Point</div>
+        <div class="award-grid-d" id="awardGridD"></div>
+        <button class="next-btn-d" onclick="nextRound()">Next Round →</button>
+      </div>
+    </div>
+  </div>
+</div>
+ 
+<!-- ══ WIN OVERLAY ══ -->
+<div class="win-overlay" id="winOverlay">
+  <div class="win-trophy">🏆</div>
+  <div class="win-title">Winner</div>
+  <div class="win-name" id="winName">—</div>
+  <div class="win-sub" id="winSub">—</div>
+  <div class="win-scores">
+    <h4>Final Scores</h4>
+    <div id="winScoreList"></div>
+  </div>
+  <div class="win-actions">
+    <button class="btn btn-outline" onclick="exitGame()">Home</button>
+    <button class="btn btn-green" onclick="rematch()">Rematch</button>
+  </div>
+</div>
+ 
+<!-- ══ EMOJI MODAL ══ -->
+<div class="modal-backdrop" id="emojiModal" onclick="closeEmojiModal(event)">
+  <div class="modal-sheet">
+    <h4>Pick an emoji</h4>
+    <div class="emoji-grid" id="emojiGrid"></div>
+  </div>
+</div>
+ 
+<!-- ══ TOAST ══ -->
+<div class="toast" id="toast"></div>
+ 
+<script>
+// ═══════════════════════════════
+//  BUILTIN WHEELS DATA
+// ═══════════════════════════════
+const BUILTIN_WHEELS = [
+  {
+    id:'all', name:'All Categories', emoji:'🎲', color:'#1db954',
+    desc:'The full randomized mix of everything — classics, bangers, and pure chaos.',
+    categories:[
+      "Best Song to Cry To","Best Song for a Road Trip","Best Break-Up Anthem",
+      "Best Song to Hype You Up","Best Song for a First Dance","Best Song to Blast at 2AM",
+      "Best Song That Hits Different at Night","Best Summer Banger","Best Shower Song",
+      "Best Karaoke Banger","Best One-Hit Wonder","Best Song From a Movie",
+      "Best 80s Banger","Best 90s Throwback","Best 2000s Nostalgia Hit",
+      "Best Hip-Hop Anthem","Best Rock Anthem","Best Pop Song of All Time",
+      "Best Song with Insane Lyrics","Best Song Nobody Talks About Enough",
+      "Best Love Song","Best Song to End a Party","Best Song to Start a Party",
+      "Best Sad Anthem","Best Guilty Pleasure Song","Best Genre-Defying Song",
+      "Best Collab Ever","Best Song in Another Language","Best Song Under 2 Minutes",
+      "Best Song to Play at a Funeral to Make It Weird",
+      "Best Song a Divorced Dad Blasts on a Tuesday",
+      "Best Song to Commit a Felony To",
+      "Best Song to Eat an Entire Rotisserie Chicken Alone To",
+      "Best Song a Raccoon Would Vibe To",
+      "Best Song That Would Make a Golden Retriever Cry",
+      "Best Song to Dramatically Stir Mac & Cheese To",
+      "Best Song That Would Play as Society Collapses",
+      "Best Song for an Emotional Support Animal Who's Judging You",
+      "Best Song to Play When You Realize You're the Problem",
+      "Best Song for the Villain's Redemption Arc",
+      "Best Song That Absolutely Did Not Need to Go That Hard But Did",
+      "Best Song for Watching Rain and Thinking About Your Choices",
+      "Best Song a Pigeon Would Listen to on a Tiny Bluetooth Speaker",
+      "Best Song to Play Right Before Doing Something Stupid",
+      "Best Song for the Existential Dread That Hits on a Sunday Evening",
+      "Best Song for Lying Face-Down on the Floor",
+      "Best Song a Cryptid Would Have on Their Workout Playlist",
+      "Best Song for Accidentally Starting a Dance Circle",
+      "Best Song That a Slightly Unhinged Librarian Would Play",
+      "Best Song a Medieval Peasant Would Inexplicably Know All the Words To",
+      "Best Song for When the Pre-Drinks Get Too Deep",
+      "Best Song for the Walk of Shame That Becomes a Walk of Fame",
+      "Best Song a Victorian Ghost Would Be Obsessed With",
+      "Best Song for Aggressively Folding Laundry",
+      "Best Song for Realizing Mid-Conversation That You're the Toxic One",
+      "Best Song Your Brain Plays at 4AM for No Reason",
+      "Best Song for When You've Made a Terrible Decision and You Know It"
+    ]
+  },
+  {
+    id:'vibes', name:'Vibes & Moments', emoji:'🌙', color:'#8b5cf6',
+    desc:'Pure feeling. Every category is about a mood, a memory, or a moment.',
+    categories:[
+      "Best Song to Cry To","Best Song to Blast at 2AM","Best Song That Hits Different at Night",
+      "Best Shower Song","Best Song for Staring Into the Void",
+      "Best Song for the Part of the Night When Things Get Philosophical",
+      "Best Song for Walking Out of a Hospital Into the Sunshine",
+      "Best Song That Hits Like a Memory You Can't Place",
+      "Best Song for When You're 30 Seconds From Crying But Need to Hold It Together",
+      "Best Song for Lying Face-Down on the Floor",
+      "Best Song to Listen to While Your Food Delivery Is 45 Minutes Late",
+      "Best Song for Watching Rain and Thinking About Your Choices",
+      "Best Song Your Brain Plays at 4AM for No Reason",
+      "Best Song That Went Way Harder Than It Had Any Right To",
+      "Best Song for the Existential Dread That Hits on a Sunday Evening",
+      "Best Song for When the Vibe Dies and You Need to Resurrect It",
+      "Best Song for Being Dramatically Unbothered",
+      "Best Song for a Feral Night Out You'll Never Fully Remember",
+      "Best Song for When the Pre-Drinks Get Too Deep",
+      "Best Song to Listen to Right After a Haircut"
+    ]
+  },
+  {
+    id:'unhinged', name:'Unhinged Only', emoji:'🦝', color:'#f97316',
+    desc:'Zero normal categories. Just chaos, raccoons, and questionable life decisions.',
+    categories:[
+      "Best Song to Play at a Funeral to Make It Weird",
+      "Best Song a Divorced Dad Blasts on a Tuesday",
+      "Best Song to Commit a Felony To",
+      "Best Song That Sounds Like an AI Having a Breakdown",
+      "Best Song to Eat an Entire Rotisserie Chicken Alone To",
+      "Best Song That Would Get You Kicked Out of a Target",
+      "Best Song to Send Your Ex at 3AM Then Immediately Unsend",
+      "Best Song a Raccoon Would Vibe To",
+      "Best Song to Narrate Someone Falling Down Stairs",
+      "Best Song to Have a Meltdown in a Gas Station Bathroom To",
+      "Best Song That Would Make a Golden Retriever Cry",
+      "Best Song for Quitting a Job You've Had for 3 Days",
+      "Best Song to Dramatically Stir Mac & Cheese To",
+      "Best Song for Faking Your Own Death",
+      "Best Song That Would Play as Society Collapses",
+      "Best Song to Eat Cereal at Midnight While Reconsidering Your Life",
+      "Best Song for an Emotional Support Animal Who's Judging You",
+      "Best Song a Sleep-Deprived Goblin Would Listen to",
+      "Best Song for Dramatically Leaving a Room",
+      "Best Song a Pigeon Would Listen to on a Tiny Bluetooth Speaker",
+      "Best Song a Cryptid Would Have on Their Workout Playlist",
+      "Best Song That a Slightly Unhinged Librarian Would Play",
+      "Best Song a Medieval Peasant Would Inexplicably Know All the Words To",
+      "Best Song a Victorian Ghost Would Be Obsessed With",
+      "Best Song for Aggressively Folding Laundry",
+      "Best Song for Realizing Mid-Conversation That You're the Toxic One"
+    ]
+  },
+  {
+    id:'nostalgia', name:'Era Wars', emoji:'📼', color:'#ec4899',
+    desc:'Decade by decade. Argue about which era had the best music. It was the 90s.',
+    categories:[
+      "Best 60s Track","Best 70s Banger","Best 80s Banger","Best 90s Throwback",
+      "Best 2000s Nostalgia Hit","Best 2010s Anthem","Best Song That Defined a Generation",
+      "Best One-Hit Wonder","Best Song That Got Way Too Big","Best Disco Song Ever",
+      "Best Song Before You Were Born That Slaps","Best Pre-Streaming Era Hidden Gem",
+      "Best Song That Aged Perfectly","Best Song That Aged Terribly (but still slaps)",
+      "Best Comeback Song of All Time","Best Song From a Forgotten Era",
+      "Best Song That Was Ahead of Its Time","Best Cover That Outshines the Original"
+    ]
+  },
+  {
+    id:'situations', name:'Situations', emoji:'🎬', color:'#06b6d4',
+    desc:'A song for every scenario. Some normal. Some deeply specific.',
+    categories:[
+      "Best Song for a Road Trip","Best Song for a First Dance","Best Karaoke Banger",
+      "Best Song to Start a Party","Best Song to End a Party",
+      "Best Song for Running","Best Song for Cooking","Best Song for a Drive at Night",
+      "Best Song for a Beach Day","Best Song to Cry to Alone in Your Car",
+      "Best Song for a First Date","Best Song to Play at a Breakup",
+      "Best Song for a Job Interview Walk-In","Best Song for a Movie Montage",
+      "Best Song for a Final Boss Battle","Best Song to Wake Up To",
+      "Best Song to Fall Asleep To","Best Song for Getting Ready",
+      "Best Song for a Last Dance at a Wedding","Best Song for a Long Flight",
+      "Best Song for a Gym Session","Best Song to Propose To"
+    ]
+  },
+  {
+    id:'genre', name:'Genre Battles', emoji:'🎸', color:'#eab308',
+    desc:'Best of each genre. All taste levels welcome. No gatekeeping.',
+    categories:[
+      "Best Hip-Hop Song Ever","Best Rock Anthem","Best Pop Song of All Time",
+      "Best R&B Track","Best Country Song (That Non-Country People Like)",
+      "Best Jazz Track","Best Electronic / EDM Banger","Best Indie Sleeper Hit",
+      "Best Metal Song","Best Reggae Track","Best Soul Song",
+      "Best Gospel Track","Best Classical Piece That Slaps",
+      "Best Musical Theatre Song","Best Folk Song","Best Latin Banger",
+      "Best K-Pop Banger","Best Afrobeats Song","Best Punk Song",
+      "Best Song That Blends Two Genres Perfectly","Best Genre-Defying Song"
+    ]
+  }
+];
+ 
+// ═══════════════════════════════
+//  STATE
+// ═══════════════════════════════
+let players = [];
+let scores = {}, streaks = {};
+let judgeIndex = 0, round = 1;
+let pointsToWin = 7;
+let isSpinning = false, wheelAngle = 0, isDouble = false, hasSpun = false;
+let activeWheelId = 'all';
+let customWheels = JSON.parse(localStorage.getItem('auxwars_wheels') || '[]');
+let editingWheelId = null;
+let builderEmoji = '🎵';
+let builderCats = [];
+ 
+// carousel state
+let carouselIdx = 0;
+let allWheels = [];
+let touchStartX = 0, touchStartTime = 0;
+ 
+// ═══════════════════════════════
+//  VIEW MANAGEMENT
+// ═══════════════════════════════
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const nb = document.getElementById('nav-' + id);
+  if (nb) nb.classList.add('active');
+  // Only hide nav during actual gameplay
+  const nav = document.getElementById('mainNav');
+  if (id === 'game') {
+    nav.classList.add('hidden');
+  } else {
+    nav.classList.remove('hidden');
+  }
+}
+ 
+function getWheelById(id) {
+  return [...BUILTIN_WHEELS, ...customWheels].find(w => w.id === id);
+}
+ 
+// ═══════════════════════════════
+//  HOME
+// ═══════════════════════════════
+document.getElementById('playerInput').addEventListener('keydown', e => { if(e.key==='Enter') addPlayer(); });
+ 
+function addPlayer() {
+  const inp = document.getElementById('playerInput');
+  const name = inp.value.trim();
+  if (!name || players.includes(name)) { inp.value=''; return; }
+  players.push(name);
+  inp.value = '';
+  renderPlayers();
+  updateHome();
+  playJoinSound();
+}
+function removePlayer(name) {
+  players = players.filter(p => p !== name);
+  renderPlayers();
+  updateHome();
+}
+function renderPlayers() {
+  const el = document.getElementById('playersWrap');
+  if (!players.length) { el.innerHTML='<span style="color:var(--text3);font-size:13px">Add at least 2 players</span>'; return; }
+  el.innerHTML = players.map(p => `<div class="p-chip"><div class="p-av">${p[0].toUpperCase()}</div>${p}<button class="p-rm" onclick="removePlayer('${p.replace(/'/g,"\\'")}')" aria-label="Remove">×</button></div>`).join('');
+}
+function adjPts(d) {
+  pointsToWin = Math.max(1, Math.min(50, pointsToWin + d));
+  document.getElementById('ptsVal').textContent = pointsToWin;
+  updateHome();
+}
+function updateHome() {
+  const wl = getWheelById(activeWheelId);
+  document.getElementById('activeWheelLabel').textContent = wl ? `${wl.emoji} ${wl.name}` : '—';
+  const sub = document.getElementById('playCardSub');
+  if (players.length < 2) sub.textContent = 'Add players to begin';
+  else sub.textContent = `${players.length} players · ${wl ? wl.name : '—'} · First to ${pointsToWin}`;
+}
+ 
+// ═══════════════════════════════
+//  WHEEL PICKER (CAROUSEL)
+// ═══════════════════════════════
+function openWheelPicker() {
+  allWheels = [...BUILTIN_WHEELS, ...customWheels];
+  carouselIdx = Math.max(0, allWheels.findIndex(w => w.id === activeWheelId));
+  buildCarousel();
+  showView('wheel-picker');
+  setCarouselIdx(carouselIdx, false);
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('nav-wheels').classList.add('active');
+}
+ 
+function closeWheelPicker() {
+  showView('home');
+}
+ 
+function buildCarousel() {
+  const track = document.getElementById('carouselTrack');
+  const dots = document.getElementById('carouselDots');
+ 
+  track.innerHTML = allWheels.map((w, i) => {
+    const isCustom = !BUILTIN_WHEELS.find(b => b.id === w.id);
+    const catPills = w.categories.slice(0, 16).map(c => `<div class="cat-pill">${c}</div>`).join('');
+    const more = w.categories.length > 16 ? `<div class="cat-pill" style="color:var(--text3)">+${w.categories.length - 16} more</div>` : '';
+    const editBtn = isCustom ? `<button class="btn btn-outline btn-sm" style="margin-top:12px;width:100%" onclick="openBuilder('${w.id}')">Edit Wheel</button>` : '';
+    const isActive = w.id === activeWheelId;
+    return `<div class="carousel-slide" data-id="${w.id}">
+      <div class="slide-wheel-header">
+        <span class="slide-wheel-emoji">${w.emoji}</span>
+        <div class="slide-wheel-name">${w.name}</div>
+        <div class="slide-wheel-desc">${w.desc}</div>
+        <span class="slide-wheel-count">${w.categories.length} categories</span>
+      </div>
+      <div class="cat-pill-grid">${catPills}${more}</div>
+      <button class="select-this-btn ${isActive ? 'selected-state' : ''}" id="selBtn-${w.id}" onclick="selectWheel('${w.id}')">${isActive ? '✓ Selected' : 'Select This Wheel'}</button>
+      ${editBtn}
+    </div>`;
+  }).join('');
+ 
+  dots.innerHTML = allWheels.map((_, i) => `<div class="c-dot ${i===carouselIdx?'active':''}" onclick="setCarouselIdx(${i},true)"></div>`).join('');
+ 
+  // touch/swipe
+  const outer = document.getElementById('carouselOuter');
+  outer.removeEventListener('touchstart', onTouchStart);
+  outer.removeEventListener('touchend', onTouchEnd);
+  outer.addEventListener('touchstart', onTouchStart, {passive:true});
+  outer.addEventListener('touchend', onTouchEnd, {passive:true});
+}
+ 
+function onTouchStart(e) { touchStartX = e.touches[0].clientX; touchStartTime = Date.now(); }
+function onTouchEnd(e) {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dt = Date.now() - touchStartTime;
+  if (Math.abs(dx) > 50 && dt < 400) carouselGo(dx < 0 ? 1 : -1);
+}
+ 
+function carouselGo(dir) {
+  const next = carouselIdx + dir;
+  if (next < 0 || next >= allWheels.length) return;
+  setCarouselIdx(next, true);
+}
+ 
+function setCarouselIdx(idx, animate) {
+  carouselIdx = idx;
+  const track = document.getElementById('carouselTrack');
+  track.style.transition = animate ? 'transform .35s cubic-bezier(0.25,0.46,0.45,0.94)' : 'none';
+  track.style.transform = `translateX(-${idx * 100}%)`;
+  document.querySelectorAll('.c-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+  document.getElementById('arrowLeft').disabled = idx === 0;
+  document.getElementById('arrowRight').disabled = idx === allWheels.length - 1;
+}
+ 
+function selectWheel(id) {
+  activeWheelId = id;
+  updateHome();
+  // update all select buttons
+  document.querySelectorAll('.select-this-btn').forEach(b => {
+    const slide = b.closest('.carousel-slide');
+    const isThis = slide && slide.dataset.id === id;
+    b.textContent = isThis ? '✓ Selected' : 'Select This Wheel';
+    b.classList.toggle('selected-state', isThis);
+  });
+  showToast('Wheel selected ✓');
+}
+ 
+// keyboard arrow support
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('view-wheel-picker').classList.contains('active')) return;
+  if (e.key === 'ArrowLeft') carouselGo(-1);
+  if (e.key === 'ArrowRight') carouselGo(1);
+});
+ 
+// ═══════════════════════════════
+//  BUILDER
+// ═══════════════════════════════
+function openBuilder(editId) {
+  if (editId) {
+    const w = customWheels.find(w => w.id === editId);
+    if (!w) return;
+    editingWheelId = editId;
+    builderEmoji = w.emoji;
+    builderCats = [...w.categories];
+    document.getElementById('wheelNameInput').value = w.name;
+    document.getElementById('emojiPickBtn').textContent = w.emoji;
+    document.getElementById('builderTitle').textContent = 'Edit Wheel';
+  } else {
+    resetBuilderState();
+  }
+  renderBuilderCats();
+  showView('builder');
+  document.getElementById('mainNav').classList.remove('hidden');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('nav-builder').classList.add('active');
+}
+ 
+function closeBuilder() {
+  resetBuilderState();
+  openWheelPicker();
+}
+ 
+function resetBuilderState() {
+  editingWheelId = null;
+  builderEmoji = '🎵';
+  builderCats = [];
+  document.getElementById('wheelNameInput').value = '';
+  document.getElementById('emojiPickBtn').textContent = '🎵';
+  document.getElementById('builderTitle').textContent = 'New Wheel';
+  document.getElementById('catInput').value = '';
+  renderBuilderCats();
+}
+ 
+document.getElementById('catInput').addEventListener('keydown', e => { if(e.key==='Enter') addCat(); });
+ 
+function addCat() {
+  const inp = document.getElementById('catInput');
+  const val = inp.value.trim();
+  if (!val || builderCats.includes(val)) { inp.value=''; return; }
+  builderCats.push(val);
+  inp.value = '';
+  inp.focus();
+  renderBuilderCats();
+}
+ 
+function removeCat(i) {
+  builderCats.splice(i, 1);
+  renderBuilderCats();
+}
+ 
+function renderBuilderCats() {
+  document.getElementById('catCount').textContent = `(${builderCats.length})`;
+  document.getElementById('catList').innerHTML = builderCats.map((c, i) =>
+    `<div class="cat-item"><span>${c}</span><button class="cat-rm" onclick="removeCat(${i})">×</button></div>`
+  ).join('');
+}
+ 
+function saveWheel() {
+  const name = document.getElementById('wheelNameInput').value.trim();
+  if (!name) { showToast('Give your wheel a name'); return; }
+  if (builderCats.length < 2) { showToast('Add at least 2 categories'); return; }
+  const colors = ['#1db954','#8b5cf6','#f97316','#ec4899','#06b6d4','#eab308','#ef4444','#10b981'];
+  const wheel = {
+    id: editingWheelId || ('custom_' + Date.now()),
+    name, emoji: builderEmoji,
+    desc: `Custom wheel with ${builderCats.length} categories`,
+    color: editingWheelId ? (customWheels.find(w=>w.id===editingWheelId)?.color || colors[0]) : colors[Math.floor(Math.random()*colors.length)],
+    categories: [...builderCats]
+  };
+  if (editingWheelId) {
+    const idx = customWheels.findIndex(w => w.id === editingWheelId);
+    if (idx !== -1) customWheels[idx] = wheel;
+  } else {
+    customWheels.push(wheel);
+    activeWheelId = wheel.id;
+  }
+  localStorage.setItem('auxwars_wheels', JSON.stringify(customWheels));
+  showToast(editingWheelId ? 'Wheel updated ✓' : 'Wheel saved ✓');
+  resetBuilderState();
+  updateHome();
+  openWheelPicker();
+}
+ 
+// ═══════════════════════════════
+//  EMOJI MODAL
+// ═══════════════════════════════
+const EMOJIS = ['🎵','🎸','🎹','🎺','🎻','🥁','🎷','🎤','🎧','🎼','🪗','🪘','🎙','🔊',
+  '🌙','⭐','🔥','💫','🌊','🌈','❄️','🌸','🦋','🦝','🦜','🐙','🦄','👾','👻','🤖',
+  '🎯','🎲','🎮','🃏','🎪','🏆','⚡','💥','🌀','🎭','🪄','🎬','📼','📺',
+  '🍕','🍔','🌮','☕','🍺','🍉','🌶️','🍿','🥂','💀','🫀','🧠','🤡','💩'];
+ 
+function openEmojiModal() {
+  document.getElementById('emojiGrid').innerHTML = EMOJIS.map(e =>
+    `<div class="e-opt" onclick="pickEmoji('${e}')">${e}</div>`).join('');
+  document.getElementById('emojiModal').classList.add('open');
+}
+function pickEmoji(e) {
+  builderEmoji = e;
+  document.getElementById('emojiPickBtn').textContent = e;
+  document.getElementById('emojiModal').classList.remove('open');
+}
+function closeEmojiModal(ev) {
+  if (ev.target === document.getElementById('emojiModal')) document.getElementById('emojiModal').classList.remove('open');
+}
+ 
+// ═══════════════════════════════
+//  GAME
+// ═══════════════════════════════
+function startGame() {
+  if (players.length < 2) { showToast('Add at least 2 players'); return; }
+  const wheel = getWheelById(activeWheelId);
+  if (!wheel || wheel.categories.length < 2) { showToast('Select a valid wheel'); return; }
+  scores = {}; streaks = {};
+  players.forEach(p => { scores[p]=0; streaks[p]=0; });
+  judgeIndex=0; round=1; isDouble=false; wheelAngle=0; hasSpun=false;
+  showView('game');
+  document.getElementById('mainNav').classList.add('hidden');
+  ['spinBtn','spinBtnD'].forEach(id=>{const b=document.getElementById(id);if(b){b.textContent='Spin';}});
+  resetCatDisplay();
+  document.getElementById('roundPill').textContent='Round 1';
+  document.getElementById('doublePill').style.display='none';
+  initWheelCanvas();
+  drawWheel();
+  renderGameScores();
+  renderJudge();
+  renderAwardGrid();
+}
+ 
+function getActiveCanvas() {
+  // return whichever canvas is currently visible
+  const d = document.getElementById('mainWheelD');
+  if (d && d.offsetParent !== null) return d;
+  return document.getElementById('mainWheel');
+}
+ 
+function initWheelCanvas() {
+  ['mainWheel','mainWheelD'].forEach(id => {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    const outer = canvas.closest('.wheel-outer');
+    const size = outer ? Math.min(outer.offsetWidth, outer.offsetHeight, 300) : 230;
+    canvas.width = size * (window.devicePixelRatio || 1);
+    canvas.height = size * (window.devicePixelRatio || 1);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+    canvas._size = size;
+  });
+}
+ 
+function drawWheel(highlight=-1) {
+  ['mainWheel','mainWheelD'].forEach(id => {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const s = canvas._size || 230;
+    const cx=s/2, cy=s/2, r=s/2-2;
+    const cats = getWheelById(activeWheelId)?.categories || [];
+    const n = cats.length;
+    const sa = (2*Math.PI)/n;
+    ctx.clearRect(0,0,s,s);
+    for (let i=0;i<n;i++) {
+      const st=wheelAngle+i*sa, en=st+sa;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,st,en); ctx.closePath();
+      ctx.fillStyle = i===highlight ? '#ffffff' : (i%2===0 ? '#1db954' : '#3b8beb');
+      ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,.18)'; ctx.lineWidth=0.6; ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.strokeStyle='rgba(29,185,84,.3)'; ctx.lineWidth=3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx,cy,s*.095,0,Math.PI*2);
+    ctx.fillStyle='#0a0a0a'; ctx.fill();
+    ctx.strokeStyle='#1db954'; ctx.lineWidth=2; ctx.stroke();
+    ctx.font=`${s*.065}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('🎵',cx,cy);
+  });
+}
+ 
+// ═══════════════════════════════
+//  AUDIO ENGINE (Web Audio API)
+// ═══════════════════════════════
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+ 
+function playJoinSound() {
+  try {
+    const ctx = getAudio();
+    // happy little two-note "bloop bloop"
+    [440, 660].forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'sine';
+      o.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.1);
+      g.gain.setValueAtTime(0.2, ctx.currentTime + i * 0.1);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.1 + 0.18);
+      o.start(ctx.currentTime + i * 0.1);
+      o.stop(ctx.currentTime + i * 0.1 + 0.2);
+    });
+  } catch(e) {}
+}
+ 
+function playSpinTick(freq, vol=0.18) {
+  try {
+    const ctx = getAudio();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq, ctx.currentTime);
+    g.gain.setValueAtTime(vol, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+    o.start(); o.stop(ctx.currentTime + 0.06);
+  } catch(e) {}
+}
+ 
+function playSpinWhirr(duration) {
+  try {
+    const ctx = getAudio();
+    // spinning whirr that slows down
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    o.connect(filter); filter.connect(g); g.connect(ctx.destination);
+    o.type = 'sawtooth';
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(800, ctx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + duration);
+    o.frequency.setValueAtTime(120, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + duration);
+    g.gain.setValueAtTime(0.07, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    o.start(); o.stop(ctx.currentTime + duration);
+  } catch(e) {}
+}
+ 
+function playLandSound() {
+  try {
+    const ctx = getAudio();
+    // satisfying "ding" when wheel lands
+    [523, 659, 784].forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'sine';
+      o.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.08);
+      g.gain.setValueAtTime(0.25, ctx.currentTime + i * 0.08);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.08 + 0.4);
+      o.start(ctx.currentTime + i * 0.08);
+      o.stop(ctx.currentTime + i * 0.08 + 0.4);
+    });
+  } catch(e) {}
+}
+ 
+function playWinFanfare() {
+  try {
+    const ctx = getAudio();
+    // winner fanfare — rising melody with percussion hits
+    const notes = [
+      {f:523, t:0, d:0.15},   // C
+      {f:659, t:0.15, d:0.15}, // E
+      {f:784, t:0.3, d:0.15},  // G
+      {f:1047,t:0.45, d:0.4},  // C high
+      {f:784, t:0.5, d:0.12},
+      {f:880, t:0.62, d:0.12},
+      {f:1047,t:0.74, d:0.5},
+    ];
+    notes.forEach(({f,t,d}) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(f, ctx.currentTime + t);
+      g.gain.setValueAtTime(0.3, ctx.currentTime + t);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + d);
+      o.start(ctx.currentTime + t);
+      o.stop(ctx.currentTime + t + d + 0.05);
+    });
+    // percussion hits
+    [0, 0.3, 0.45, 0.6, 0.74].forEach(t => {
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i/data.length, 3);
+      const src = ctx.createBufferSource();
+      const g = ctx.createGain();
+      src.buffer = buf; src.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.35, ctx.currentTime + t);
+      src.start(ctx.currentTime + t);
+    });
+  } catch(e) {}
+}
+ 
+let tickInterval = null;
+function startSpinTicks(duration) {
+  let elapsed = 0;
+  let interval = 60; // ms between ticks, starts fast
+  const ease = t => 1 - Math.pow(1 - t, 4);
+  function tick() {
+    const t = Math.min(elapsed / duration, 1);
+    const progress = ease(t);
+    // frequency rises as wheel spins, then falls
+    const freq = 200 + progress * 600 * (1 - progress * 0.7);
+    playSpinTick(freq, 0.12 + progress * 0.08);
+    // interval gets longer as wheel slows
+    interval = 40 + progress * 220;
+    elapsed += interval;
+    if (elapsed < duration) tickInterval = setTimeout(tick, interval);
+  }
+  tick();
+}
+ 
+function stopSpinTicks() {
+  if (tickInterval) { clearTimeout(tickInterval); tickInterval = null; }
+}
+ 
+function spinWheel() {
+  if (isSpinning) return;
+  isSpinning=true;
+  hasSpun=true;
+  ['spinBtn','spinBtnD'].forEach(id=>{const b=document.getElementById(id);if(b){b.disabled=true;}});
+  ['spinBtn','spinBtnD'].forEach(id=>{const b=document.getElementById(id);if(b){b.textContent='Spinning...';}});
+  const setCat = (text, cls) => ['catText','catTextD'].forEach(id=>{
+    const el=document.getElementById(id); if(el){el.textContent=text;el.className=cls;}
+  });
+  setCat('...','cat-display-text spinning');
+  document.getElementById('doublePill').style.display='none';
+  isDouble=Math.random()<.2;
+  const cats=getWheelById(activeWheelId)?.categories||[];
+  const n=cats.length;
+  const sa=(2*Math.PI)/n;
+  const spinAmt=(Math.PI*2)*(9+Math.random()*10);
+  const dur=3200+Math.random()*1600;
+  const t0=performance.now();
+  const start=wheelAngle;
+  const ease=t=>1-Math.pow(1-t,4);
+ 
+  playSpinWhirr(dur / 1000);
+  startSpinTicks(dur);
+ 
+  function frame(now) {
+    const t=Math.min((now-t0)/dur,1);
+    wheelAngle=start+spinAmt*ease(t);
+    drawWheel();
+    if(t<1){requestAnimationFrame(frame);return;}
+    stopSpinTicks();
+    wheelAngle=wheelAngle%(Math.PI*2);
+    const norm=(((-Math.PI/2)-wheelAngle)%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
+    const idx=Math.floor(norm/sa)%n;
+    drawWheel(idx);
+    setCat(cats[idx],'cat-display-text');
+    isSpinning=false;
+    ['spinBtn','spinBtnD'].forEach(id=>{const b=document.getElementById(id);if(b){b.disabled=false;}});
+    ['spinBtn','spinBtnD'].forEach(id=>{const b=document.getElementById(id);if(b){b.textContent='Re-Spin';}});
+    playLandSound();
+    if(isDouble) document.getElementById('doublePill').style.display='inline-flex';
+  }
+  requestAnimationFrame(frame);
+}
+ 
+function resetCatDisplay() {
+  ['catText','catTextD'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.textContent='Spin the wheel';el.className='cat-display-text';}
+  });
+}
+ 
+function renderGameScores() {
+  const sorted=[...players].sort((a,b)=>scores[b]-scores[a]);
+  // mobile — vertical rows with progress bar
+  const strip=document.getElementById('scoresStrip');
+  if(strip) strip.innerHTML=sorted.map(p=>{
+    const isJ=p===players[judgeIndex];
+    const fires=streaks[p]>=3?'🔥'.repeat(Math.min(streaks[p]-2,3)):'';
+    const pct=Math.min(Math.round((scores[p]/pointsToWin)*100),100);
+    return `<div class="score-chip${isJ?' is-judge':''}">
+      <div class="sc-av-mini" style="${isJ?'background:var(--surface3)':''}">${p[0].toUpperCase()}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+          <span class="sc-name-mini">${p}${isJ?' 🎤':''}</span>
+          <span class="sc-fire">${fires}</span>
+        </div>
+        <div class="sc-bar-wrap"><div class="sc-bar-mini" style="width:${pct}%"></div></div>
+      </div>
+      <div class="sc-pts-mini">${scores[p]}</div>
+    </div>`;
+  }).join('');
+  // desktop
+  const dl=document.getElementById('scoreListD');
+  if(dl) dl.innerHTML=sorted.map(p=>{
+    const isJ=p===players[judgeIndex];
+    const fires=streaks[p]>=3?'🔥'.repeat(Math.min(streaks[p]-2,3)):'';
+    const pct=Math.min(Math.round((scores[p]/pointsToWin)*100),100);
+    return `<div class="score-item">
+      <div class="sc-av" style="${isJ?'background:var(--surface3)':''}">${p[0].toUpperCase()}</div>
+      <div class="sc-info">
+        <div class="sc-name">${p}${isJ?' 🎤':''}${fires}</div>
+        <div class="sc-bar-wrap"><div class="sc-bar" style="width:${pct}%"></div></div>
+      </div>
+      <div class="sc-pts">${scores[p]}</div>
+    </div>`;
+  }).join('');
+}
+ 
+function renderJudge() {
+  const j=players[judgeIndex];
+  ['judgeAv','judgeAvD'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=j[0].toUpperCase();});
+  ['judgeNm','judgeNmD'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=j;});
+}
+ 
+function setNextReady(ready) {
+  document.querySelectorAll('.next-btn,.next-btn-d').forEach(b => {
+    b.classList.toggle('ready', ready);
+    b.disabled = !ready;
+  });
+}
+ 
+function renderAwardGrid() {
+  const eligible=players.filter((_,i)=>i!==judgeIndex);
+  const mk=(cls)=>eligible.map(p=>`<button class="${cls}" data-player="${p.replace(/"/g,'&quot;')}" onclick="awardPoint('${p.replace(/'/g,"\\'")}')">${p}</button>`).join('');
+  const mg=document.getElementById('awardGrid'); if(mg) mg.innerHTML=mk('award-btn');
+  const dg=document.getElementById('awardGridD'); if(dg) dg.innerHTML=mk('award-btn-d');
+  setNextReady(false);
+}
+ 
+function awardPoint(name) {
+  // lock all award buttons — one point per round
+  document.querySelectorAll('.award-btn,.award-btn-d').forEach(b=>{b.disabled=true;b.style.opacity='0.3';});
+  document.querySelectorAll(`[data-player="${name.replace(/"/g,'&quot;')}"]`).forEach(b=>{
+    b.style.opacity='1';b.style.borderColor='var(--green)';b.style.color='var(--green)';
+  });
+  const pts=isDouble?2:1;
+  scores[name]+=pts;
+  players.forEach(p=>{
+    if(p===name) streaks[p]=(streaks[p]||0)+1;
+    else if(p!==players[judgeIndex]) streaks[p]=0;
+  });
+  ['catText','catTextD'].forEach(id=>{
+    const el=document.getElementById(id); if(!el)return;
+    el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),500);
+  });
+  renderGameScores();
+  setNextReady(true);
+  if(scores[name]>=pointsToWin) setTimeout(()=>showWinner(name),300);
+}
+ 
+ 
+function nextRound() {
+  round++; judgeIndex=(judgeIndex+1)%players.length;
+  isDouble=false; wheelAngle=0; hasSpun=false;
+  ['spinBtn','spinBtnD'].forEach(id=>{const b=document.getElementById(id);if(b){b.textContent='Spin';}});
+  document.getElementById('roundPill').textContent=`Round ${round}`;
+  document.getElementById('doublePill').style.display='none';
+  resetCatDisplay();
+  drawWheel();
+  renderGameScores(); renderJudge(); renderAwardGrid();
+}
+ 
+function exitGame() {
+  document.getElementById('winOverlay').classList.remove('show');
+  showView('home');
+  document.getElementById('mainNav').classList.remove('hidden');
+}
+function rematch() {
+  document.getElementById('winOverlay').classList.remove('show');
+  startGame();
+}
+ 
+function showWinner(name) {
+  document.getElementById('winName').textContent=name;
+  document.getElementById('winSub').textContent=`${scores[name]} points · ${round} rounds played`;
+  const sorted=[...players].sort((a,b)=>scores[b]-scores[a]);
+  document.getElementById('winScoreList').innerHTML=sorted.map((p,i)=>`
+    <div class="win-row">
+      <div class="win-rank">${['🥇','🥈','🥉'][i]||''}</div>
+      <div class="win-rname">${p}</div>
+      <div class="win-rpts">${scores[p]}</div>
+    </div>`).join('');
+  document.getElementById('winOverlay').classList.add('show');
+  playWinFanfare();
+  launchConfetti();
+}
+ 
+function launchConfetti() {
+  const cols=['#1db954','#1ed760','#ffffff','#a8e6bc','#0d5c24','#4ade80'];
+  for(let i=0;i<100;i++) setTimeout(()=>{
+    const el=document.createElement('div');
+    el.className='confetti-piece';
+    el.style.cssText=`left:${Math.random()*100}vw;background:${cols[Math.floor(Math.random()*cols.length)]};animation-duration:${2+Math.random()*2}s;animation-delay:${Math.random()*.5}s`;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),4000);
+  },i*22);
+}
+ 
+// ═══════════════════════════════
+//  TOAST
+// ═══════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2200);
+}
+ 
+// ═══════════════════════════════
+//  INIT
+// ═══════════════════════════════
+updateHome();
+renderPlayers();
+</script>
+</body>
+</html>
+ 
