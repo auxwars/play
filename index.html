@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Aux Wars</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -1876,39 +1877,60 @@ function toggleSfx() {
 })();
 
 // ═══════════════════════════════
-//  LIVE MODE
+//  LIVE MODE — powered by Supabase
 // ═══════════════════════════════
-// Uses PartyKit for real-time WebSocket sync.
-// Rooms are keyed by a 4-letter code stored in PartyKit's party storage.
-const PARTYKIT_HOST = 'auxwars.sammy.partykit.dev';
+// Paste your credentials from Supabase → Settings → API
+const SUPABASE_URL = 'https://qngrfduuulyrvtrmvkad.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_9OAhIyg0VbgwiODKX_-drA_YAMM2iem';
 
-let liveRole = null;      // 'host' | 'player'
-let liveCode = null;      // 4-letter room code
-let liveMyName = null;    // this player's name
-let liveSocket = null;    // WebSocket
-let liveState = null;     // full game state from server
+let liveRole = null;       // 'host' | 'player'
+let liveCode = null;       // 4-letter room code
+let liveMyName = null;
+let liveChannel = null;    // Supabase realtime channel
+let liveState = null;      // full game state object
 let liveSelectedWinner = null;
+let sbClient = null;
 
-// ── Code generation ──────────────────────────────────────────────
+// ── Init Supabase client ──────────────────────────────────────────
+function getSupabase() {
+  if (sbClient) return sbClient;
+  const sb = window.supabase || window.Supabase;
+  if (!sb) { showToast('Supabase not loaded — check internet connection'); return null; }
+  sbClient = sb.createClient(SUPABASE_URL, SUPABASE_KEY);
+  return sbClient;
+}
+
+// ── Code generation ───────────────────────────────────────────────
 function genCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   return Array.from({length:4}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
 }
 
-// ── Panel open/close ─────────────────────────────────────────────
+// ── Panel open/close ──────────────────────────────────────────────
 function openHostPanel() {
+  if (SUPABASE_URL === 'PASTE_YOUR_SUPABASE_URL_HERE') {
+    showToast('Add your Supabase credentials first!'); return;
+  }
   liveCode = genCode();
   liveRole = 'host';
   liveMyName = 'Host';
+  liveState = {
+    phase: 'lobby', round: 1, players: [],
+    scores: {}, submissions: [], judgeIndex: 0,
+    category: '', pointsToWin: pointsToWin
+  };
   renderHostLobby();
   document.getElementById('hostPanel').classList.add('open');
-  connectLive();
+  subscribeToRoom();
 }
 function closeHostPanel() {
   document.getElementById('hostPanel').classList.remove('open');
   disconnectLive();
 }
 function openJoinPanel() {
+  if (SUPABASE_URL === 'PASTE_YOUR_SUPABASE_URL_HERE') {
+    showToast('Add your Supabase credentials first!'); return;
+  }
   renderJoinForm();
   document.getElementById('joinPanel').classList.add('open');
 }
@@ -1917,68 +1939,89 @@ function closeJoinPanel() {
   disconnectLive();
 }
 
-// ── WebSocket connection ──────────────────────────────────────────
-function connectLive() {
-  if (liveSocket) liveSocket.close();
-  const url = `wss://${PARTYKIT_HOST}/party/${liveCode.toLowerCase()}`;
-  liveSocket = new WebSocket(url);
-  liveSocket.onopen = () => {
-    liveSocket.send(JSON.stringify({
-      type: 'join',
-      role: liveRole,
-      name: liveMyName
-    }));
-  };
-  liveSocket.onmessage = (e) => {
-    try { handleLiveMessage(JSON.parse(e.data)); } catch(err) {}
-  };
-  liveSocket.onclose = () => {
-    if (liveRole) showToast('Connection lost — try rejoining');
-  };
-  liveSocket.onerror = () => {
-    showToast('Could not connect — check your internet');
-  };
-}
-function disconnectLive() {
-  liveRole = null; liveCode = null; liveMyName = null; liveState = null;
-  if (liveSocket) { liveSocket.close(); liveSocket = null; }
-}
-function liveSend(msg) {
-  if (liveSocket && liveSocket.readyState === WebSocket.OPEN) {
-    liveSocket.send(JSON.stringify(msg));
+// ── Supabase Realtime ─────────────────────────────────────────────
+function subscribeToRoom() {
+  const sb = getSupabase();
+  if (!sb) return;
+  if (liveChannel) sb.removeChannel(liveChannel);
+
+  liveChannel = sb
+    .channel(`auxwars-${liveCode}`)
+    .on('broadcast', { event: 'state' }, ({ payload }) => {
+      liveState = payload;
+      if (liveRole === 'host') renderHostGame();
+      else renderPlayerGame();
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        if (liveRole === 'host') {
+          broadcastState(); // host broadcasts initial lobby state
+        } else {
+          // player sends join message via broadcast so host picks it up
+          broadcastMsg({ type: 'player_join', name: liveMyName });
+        }
+      } else if (status === 'CHANNEL_ERROR') {
+        showToast('Connection error — check your Supabase keys');
+      }
+    });
+
+  // players also listen for player_join events if they're the host
+  if (liveRole === 'host') {
+    liveChannel.on('broadcast', { event: 'player_join' }, ({ payload }) => {
+      if (!liveState) return;
+      if (!liveState.players.find(p => p.name === payload.name)) {
+        liveState.players.push({ name: payload.name });
+        liveState.scores[payload.name] = 0;
+        broadcastState();
+        renderHostLobby();
+        playJoinSound();
+      }
+    });
+    liveChannel.on('broadcast', { event: 'submission' }, ({ payload }) => {
+      if (!liveState) return;
+      if (!liveState.submissions) liveState.submissions = [];
+      if (!liveState.submissions.find(s => s.name === payload.name)) {
+        liveState.submissions.push({ name: payload.name, song: payload.song });
+        broadcastState();
+        renderHostGame();
+      }
+    });
   }
 }
 
-// ── Message handler ───────────────────────────────────────────────
-function handleLiveMessage(msg) {
-  switch(msg.type) {
-    case 'state':
-      liveState = msg.state;
-      if (liveRole === 'host') renderHostGame();
-      else renderPlayerGame();
-      break;
-    case 'error':
-      showToast(msg.message || 'Something went wrong');
-      break;
-  }
+function broadcastState() {
+  if (!liveChannel) return;
+  liveChannel.send({ type: 'broadcast', event: 'state', payload: liveState });
+}
+
+function broadcastMsg(payload) {
+  if (!liveChannel) return;
+  liveChannel.send({ type: 'broadcast', event: payload.type, payload });
+}
+
+function disconnectLive() {
+  const sb = getSupabase();
+  if (sb && liveChannel) sb.removeChannel(liveChannel);
+  liveRole = null; liveCode = null; liveMyName = null;
+  liveState = null; liveChannel = null; liveSelectedWinner = null;
 }
 
 // ── HOST: Lobby ───────────────────────────────────────────────────
 function renderHostLobby() {
-  const players = liveState?.players || [];
-  const canStart = players.length >= 1;
+  const pls = liveState?.players || [];
+  const canStart = pls.length >= 1;
   document.getElementById('hostPanelBody').innerHTML = `
     <div class="live-code-wrap">
       <div class="live-code-label">Room Code</div>
       <div class="live-code">${liveCode}</div>
-      <div class="live-code-sub">Friends enter this at the same URL</div>
+      <div class="live-code-sub">Friends enter this code at the same URL</div>
       <button class="live-share-btn" onclick="liveShare()">📤 Share Link</button>
     </div>
     <div class="live-players-title">Players in room</div>
-    <div class="live-player-list" id="livePlayerList">
-      ${players.length === 0
+    <div class="live-player-list">
+      ${pls.length === 0
         ? '<div class="live-empty-players">Waiting for players to join...</div>'
-        : players.map(p => `
+        : pls.map(p => `
           <div class="live-player-row">
             <div class="live-player-av">${p.name[0].toUpperCase()}</div>
             <div class="live-player-name">${p.name}</div>
@@ -1987,7 +2030,7 @@ function renderHostLobby() {
       }
     </div>
     <button class="live-start-btn ${canStart?'ready':''}" onclick="liveStartGame()">
-      Start Game (${players.length} player${players.length!==1?'s':''})
+      Start Game — ${pls.length} player${pls.length!==1?'s':''}
     </button>
   `;
 }
@@ -1997,7 +2040,7 @@ function liveShare() {
   if (navigator.share) {
     navigator.share({ title: 'Join my Aux Wars game!', text: `Code: ${liveCode}`, url });
   } else {
-    navigator.clipboard.writeText(url).then(() => showToast('Link copied!'));
+    navigator.clipboard.writeText(url).then(() => showToast('Link copied! 📋'));
   }
 }
 
@@ -2005,22 +2048,26 @@ function liveStartGame() {
   if (!liveState?.players?.length) return;
   const wheel = getWheelById(activeWheelId);
   const cats = wheel?.categories || [];
-  const cat = cats[Math.floor(Math.random() * cats.length)];
-  liveSend({ type: 'start', pointsToWin: pointsToWin, category: cat, wheel: activeWheelId });
+  const cat = cats[Math.floor(Math.random()*cats.length)];
+  liveState.phase = 'submitting';
+  liveState.round = 1;
+  liveState.category = cat;
+  liveState.submissions = [];
+  liveState.judgeIndex = 0;
+  liveState.pointsToWin = pointsToWin;
+  broadcastState();
+  renderHostGame();
 }
 
 // ── HOST: Game view ───────────────────────────────────────────────
 function renderHostGame() {
   if (!liveState) return;
   const s = liveState;
-
   if (s.phase === 'lobby') { renderHostLobby(); return; }
 
-  if (s.phase === 'submitting' || s.phase === 'judging') {
-    const submissions = s.submissions || [];
-    const allIn = submissions.length >= (s.players?.length || 0);
+  if (s.phase === 'submitting') {
     const judgePlayer = s.players?.[s.judgeIndex] || {name:'—'};
-
+    const eligible = s.players?.filter((_,i) => i !== s.judgeIndex) || [];
     document.getElementById('hostPanelBody').innerHTML = `
       <div class="live-status-bar">
         <div class="live-status-pill"><div class="live-status-dot"></div> Round ${s.round}</div>
@@ -2031,12 +2078,12 @@ function renderHostGame() {
         <div class="cat-val">${s.category}</div>
       </div>
       <div class="live-players-title">
-        Submissions (${submissions.length}/${s.players?.length || 0})
+        Submissions (${s.submissions.length}/${eligible.length})
       </div>
-      <div class="live-submissions" id="liveSubmissions">
-        ${submissions.length === 0
+      <div class="live-submissions">
+        ${s.submissions.length === 0
           ? '<div class="live-waiting-subs">Waiting for submissions...</div>'
-          : submissions.map((sub,i) => `
+          : s.submissions.map((sub,i) => `
             <div class="live-sub-row ${liveSelectedWinner===i?'winner':''}" onclick="liveSelectWinner(${i})">
               <div class="live-sub-av">${sub.name[0].toUpperCase()}</div>
               <div style="flex:1">
@@ -2091,22 +2138,40 @@ function liveSelectWinner(idx) {
 }
 
 function liveAwardPoint() {
-  if (liveSelectedWinner === null) return;
+  if (liveSelectedWinner === null || !liveState) return;
   const sub = liveState.submissions[liveSelectedWinner];
   if (!sub) return;
   liveSelectedWinner = null;
+  liveState.scores[sub.name] = (liveState.scores[sub.name] || 0) + 1;
+  // check win condition
+  if (liveState.scores[sub.name] >= liveState.pointsToWin) {
+    liveState.phase = 'ended';
+    broadcastState(); renderHostGame(); return;
+  }
+  // next round
   const wheel = getWheelById(activeWheelId);
   const cats = wheel?.categories || [];
-  const nextCat = cats[Math.floor(Math.random()*cats.length)];
-  liveSend({ type: 'award', winner: sub.name, nextCategory: nextCat });
+  liveState.round++;
+  liveState.category = cats[Math.floor(Math.random()*cats.length)];
+  liveState.submissions = [];
+  liveState.judgeIndex = (liveState.judgeIndex + 1) % liveState.players.length;
+  broadcastState();
+  renderHostGame();
   playLandSound();
 }
 
 function liveNewGame() {
   const wheel = getWheelById(activeWheelId);
-  const cats = wheel?.categories||[];
-  const cat = cats[Math.floor(Math.random()*cats.length)];
-  liveSend({ type: 'restart', category: cat });
+  const cats = wheel?.categories || [];
+  liveState.phase = 'submitting';
+  liveState.round = 1;
+  liveState.category = cats[Math.floor(Math.random()*cats.length)];
+  liveState.submissions = [];
+  liveState.judgeIndex = 0;
+  liveState.scores = {};
+  liveState.players.forEach(p => { liveState.scores[p.name] = 0; });
+  broadcastState();
+  renderHostGame();
 }
 
 // ── JOIN: Form ────────────────────────────────────────────────────
@@ -2123,7 +2188,7 @@ function renderJoinForm(prefillCode='') {
       <button class="live-join-btn" onclick="liveJoin()">Join Game →</button>
     </div>
     <div style="color:var(--text3);font-size:13px;text-align:center;line-height:1.6">
-      Get the 4-letter code from whoever is hosting.<br>Everyone plays from their own phone.
+      Get the 4-letter code from whoever is hosting.
     </div>
   `;
   if (prefillCode) setTimeout(()=>document.getElementById('joinNameInp')?.focus(),100);
@@ -2139,17 +2204,17 @@ function liveJoin() {
   liveMyName = name;
   liveRole = 'player';
   renderPlayerWaiting();
-  connectLive();
+  subscribeToRoom();
 }
 
 // ── PLAYER: Waiting room ──────────────────────────────────────────
 function renderPlayerWaiting() {
-  document.getElementById('joinPanelTitle').textContent = 'Waiting...';
+  document.getElementById('joinPanelTitle').textContent = 'Joined!';
   document.getElementById('joinPanelBody').innerHTML = `
     <div class="live-waiting">
       <div class="live-waiting-icon">🎵</div>
       <h2>You're in!</h2>
-      <p>Waiting for the host to start the game...</p>
+      <p>Waiting for the host to start...</p>
       <div class="live-waiting-code">${liveCode}</div>
       <p style="color:var(--text3);font-size:12px">Share this code with friends</p>
     </div>
@@ -2160,12 +2225,12 @@ function renderPlayerWaiting() {
 function renderPlayerGame() {
   if (!liveState) return;
   const s = liveState;
-  document.getElementById('joinPanelTitle').textContent = `Round ${s.round}`;
+  if (s.phase === 'lobby') { renderPlayerWaiting(); return; }
+
   const mySubmission = (s.submissions||[]).find(sub => sub.name === liveMyName);
   const judgePlayer = s.players?.[s.judgeIndex];
   const isJudge = judgePlayer?.name === liveMyName;
-
-  if (s.phase === 'lobby') { renderPlayerWaiting(); return; }
+  document.getElementById('joinPanelTitle').textContent = `Round ${s.round}`;
 
   if (s.phase === 'ended') {
     const winner = [...(s.players||[])].sort((a,b)=>(s.scores[b.name]||0)-(s.scores[a.name]||0))[0];
@@ -2173,9 +2238,8 @@ function renderPlayerGame() {
       <div style="text-align:center;padding:40px 0 20px">
         <div style="font-size:52px">${winner?.name===liveMyName?'🏆':'🎵'}</div>
         <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;margin:12px 0 4px">
-          ${winner?.name===liveMyName ? 'You won!' : winner?.name+' wins!'}
+          ${winner?.name===liveMyName?'You won!':winner?.name+' wins!'}
         </div>
-        <div style="color:var(--text3);font-size:14px">Aux Wars</div>
       </div>
       <div class="live-scoreboard">
         ${[...(s.players||[])].sort((a,b)=>(s.scores[b.name]||0)-(s.scores[a.name]||0)).map(p=>`
@@ -2193,7 +2257,7 @@ function renderPlayerGame() {
     <div class="live-submit-view">
       <div class="live-status-bar">
         <div class="live-status-pill"><div class="live-status-dot"></div> Round ${s.round}</div>
-        <div class="live-status-pill">${isJudge?'🎤 You judge':'🎤 '+judgePlayer?.name+' judges'}</div>
+        <div class="live-status-pill">${isJudge?'🎤 You judge':'🎤 '+judgePlayer?.name}</div>
       </div>
       <div class="live-category-banner">
         <div class="cat-lbl">Category</div>
@@ -2202,8 +2266,8 @@ function renderPlayerGame() {
       ${isJudge
         ? `<div style="background:rgba(29,185,84,.08);border:1px solid rgba(29,185,84,.2);border-radius:14px;padding:18px;text-align:center">
             <div style="font-size:28px;margin-bottom:8px">🎤</div>
-            <div style="font-weight:700;font-size:15px;color:var(--green)">You're the judge this round</div>
-            <div style="color:var(--text3);font-size:13px;margin-top:4px">Everyone else is picking a song. Wait for the host to show results.</div>
+            <div style="font-weight:700;font-size:15px;color:var(--green)">You're the judge</div>
+            <div style="color:var(--text3);font-size:13px;margin-top:4px">Wait for everyone to submit, then the host picks the winner.</div>
            </div>`
         : mySubmission
           ? `<div class="live-submitted-banner show">
@@ -2211,7 +2275,7 @@ function renderPlayerGame() {
               <span>"${mySubmission.song}"</span>
              </div>`
           : `<div>
-              <div class="live-submit-label">Your pick for this category:</div>
+              <div class="live-submit-label">Your pick:</div>
               <div class="live-submit-row">
                 <input class="live-submit-inp" id="liveSongInp" placeholder="Song name..." maxlength="80"
                   onkeydown="if(event.key==='Enter')liveSubmitSong()">
@@ -2238,8 +2302,15 @@ function renderPlayerGame() {
 function liveSubmitSong() {
   const song = document.getElementById('liveSongInp')?.value.trim();
   if (!song) { showToast('Type a song first'); return; }
-  liveSend({ type: 'submit', name: liveMyName, song });
+  broadcastMsg({ type: 'submission', name: liveMyName, song });
   playJoinSound();
+  // optimistically show submitted state locally
+  if (!liveState) liveState = { phase: 'submitting', round: 1, players: [], scores: {}, submissions: [], judgeIndex: 0, category: '', pointsToWin: 7 };
+  if (!liveState.submissions) liveState.submissions = [];
+  if (!liveState.submissions.find(s => s.name === liveMyName)) {
+    liveState.submissions.push({ name: liveMyName, song });
+  }
+  renderPlayerGame();
 }
 
 // ── URL join code auto-detect ─────────────────────────────────────
@@ -2254,6 +2325,7 @@ function liveSubmitSong() {
     }, 800);
   }
 })();
+
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 if (isIOS) { const b = document.getElementById('fsBtn'); if(b) b.style.display='none'; }
 
