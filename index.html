@@ -512,7 +512,17 @@ canvas#mainWheel{box-shadow:0 0 20px rgba(29,185,84,.12),0 0 40px rgba(29,185,84
 .live-submitted-banner span{color:var(--text3);font-size:12px}
 
 /* Host game view — submissions list */
-.live-submissions{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.live-wheel-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 0 20px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.live-wheel-outer{position:relative;width:min(180px,50vw);height:min(180px,50vw)}
+.live-wheel-outer canvas{width:100%;height:100%;border-radius:50%;display:block}
+.live-wheel-needle{position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:16px solid var(--green);filter:drop-shadow(0 0 6px rgba(29,185,84,.8))}
+.live-spin-btn{background:var(--green);color:#000;font-family:'DM Sans',sans-serif;font-weight:700;font-size:15px;padding:12px 36px;border:none;border-radius:100px;cursor:pointer;box-shadow:0 4px 16px rgba(29,185,84,.3);transition:all .15s}
+.live-spin-btn:disabled{opacity:.4;cursor:not-allowed}
+.live-spin-btn:not(:disabled):active{transform:scale(0.97)}
+.live-cat-display{width:100%;background:var(--surface);border:1px solid rgba(59,139,235,.2);border-radius:14px;padding:12px 16px;text-align:center}
+.live-cat-lbl{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--blue-bright);margin-bottom:4px}
+.live-cat-val{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--green-bright);min-height:40px;display:flex;align-items:center;justify-content:center;line-height:1.3}
+.live-submissions{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
 .live-sub-row{display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;transition:all .2s;cursor:pointer}
 .live-sub-row:active{transform:scale(0.98)}
 .live-sub-row.winner{border-color:var(--green);background:rgba(29,185,84,.08)}
@@ -1880,8 +1890,8 @@ function toggleSfx() {
 //  LIVE MODE — powered by Supabase
 // ═══════════════════════════════
 // Paste your credentials from Supabase → Settings → API
-const SUPABASE_URL = 'https://qngrfduuulyrvtrmvkad.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_9OAhIyg0VbgwiODKX_-drA_YAMM2iem';
+const SUPABASE_URL = 'PASTE_YOUR_SUPABASE_URL_HERE';
+const SUPABASE_KEY = 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE';
 
 let liveRole = null;       // 'host' | 'player'
 let liveCode = null;       // 4-letter room code
@@ -1981,7 +1991,7 @@ function subscribeToRoom() {
       if (!liveState) return;
       if (!liveState.submissions) liveState.submissions = [];
       if (!liveState.submissions.find(s => s.name === payload.name)) {
-        liveState.submissions.push({ name: payload.name, song: payload.song });
+        liveState.submissions.push({ name: payload.name, song: payload.song, artist: payload.artist || '' });
         broadcastState();
         renderHostGame();
       }
@@ -2044,14 +2054,20 @@ function liveShare() {
   }
 }
 
+function liveSelectByName(name) {
+  const idx = liveState?.submissions?.findIndex(s => s.name === name);
+  liveSelectedWinner = (idx !== undefined && idx >= 0) ? idx : null;
+  renderHostGame();
+}
+
 function liveStartGame() {
   if (!liveState?.players?.length) return;
   const wheel = getWheelById(activeWheelId);
   const cats = wheel?.categories || [];
-  const cat = cats[Math.floor(Math.random()*cats.length)];
-  liveState.phase = 'submitting';
+  liveState.phase = 'spinning';
   liveState.round = 1;
-  liveState.category = cat;
+  liveState.category = '';
+  liveState.categories = cats;
   liveState.submissions = [];
   liveState.judgeIndex = 0;
   liveState.pointsToWin = pointsToWin;
@@ -2060,73 +2076,190 @@ function liveStartGame() {
 }
 
 // ── HOST: Game view ───────────────────────────────────────────────
+let liveWheelAngle = 0;
+let liveWheelSpinning = false;
+
+function drawLiveWheel(highlightIdx) {
+  const canvas = document.getElementById('liveWheelCanvas');
+  if (!canvas || !liveState) return;
+  const cats = liveState.categories || [];
+  if (!cats.length) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const size = canvas.offsetWidth;
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  ctx.scale(dpr, dpr);
+  const cx = size / 2, cy = size / 2, r = size / 2 - 2;
+  const slice = (Math.PI * 2) / cats.length;
+  cats.forEach((_, i) => {
+    const start = liveWheelAngle + i * slice;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, start + slice);
+    ctx.closePath();
+    ctx.fillStyle = i === highlightIdx ? '#ffffff' : (i % 2 === 0 ? '#1db954' : '#3b8beb');
+    ctx.fill();
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(start + slice / 2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = i === highlightIdx ? '#000' : 'rgba(0,0,0,0.7)';
+    ctx.font = `bold ${Math.max(8, Math.min(11, 130/cats.length))}px DM Sans`;
+    const label = cats[i].replace('Best Song ', '').substring(0, 22);
+    ctx.fillText(label, r - 6, 4);
+    ctx.restore();
+  });
+  ctx.beginPath();
+  ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fill();
+}
+
+function spinLiveWheel() {
+  if (liveWheelSpinning || !liveState) return;
+  liveWheelSpinning = true;
+  document.getElementById('liveSpinBtn').disabled = true;
+  const cats = liveState.categories || [];
+  if (!cats.length) return;
+  const extra = Math.PI * 2 * (8 + Math.random() * 6);
+  const target = liveWheelAngle + extra;
+  const duration = 3500;
+  const start = performance.now();
+  const startAngle = liveWheelAngle;
+  playSpinWhirr(duration / 1000);
+  function frame(now) {
+    const t = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 4);
+    liveWheelAngle = startAngle + (target - startAngle) * ease;
+    const slice = (Math.PI * 2) / cats.length;
+    const norm = (((-liveWheelAngle) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const idx = Math.floor(norm / slice) % cats.length;
+    drawLiveWheel(idx);
+    if (t < 1) { requestAnimationFrame(frame); return; }
+    liveWheelSpinning = false;
+    liveState.category = cats[idx];
+    liveState.submissions = [];
+    liveState.phase = 'submitting';
+    broadcastState();
+    renderHostGame();
+    playLandSound();
+  }
+  requestAnimationFrame(frame);
+}
+
 function renderHostGame() {
   if (!liveState) return;
   const s = liveState;
   if (s.phase === 'lobby') { renderHostLobby(); return; }
 
-  if (s.phase === 'submitting') {
-    const judgePlayer = s.players?.[s.judgeIndex] || {name:'—'};
-    const eligible = s.players?.filter((_,i) => i !== s.judgeIndex) || [];
+  if (s.phase === 'spinning' || s.phase === 'submitting') {
+    const judgePlayer = s.players?.[s.judgeIndex] || { name: '—' };
+    const isJudgePhase = s.phase === 'submitting';
+    const eligible = s.players?.filter((_, i) => i !== s.judgeIndex) || [];
+    const cats = s.categories || getWheelById(activeWheelId)?.categories || [];
+    if (!liveState.categories) liveState.categories = cats;
+
     document.getElementById('hostPanelBody').innerHTML = `
       <div class="live-status-bar">
         <div class="live-status-pill"><div class="live-status-dot"></div> Round ${s.round}</div>
         <div class="live-status-pill">🎤 ${judgePlayer.name} judges</div>
+        <div class="live-status-pill">🏁 First to ${s.pointsToWin}</div>
       </div>
-      <div class="live-category-banner">
-        <div class="cat-lbl">Category</div>
-        <div class="cat-val">${s.category}</div>
+
+      <!-- WHEEL -->
+      <div class="live-wheel-wrap">
+        <div class="live-wheel-outer">
+          <canvas id="liveWheelCanvas" style="width:100%;height:100%"></canvas>
+          <div class="live-wheel-needle"></div>
+        </div>
+        <div class="live-cat-display">
+          <div class="live-cat-lbl">Category</div>
+          <div class="live-cat-val" id="liveCatVal">${s.category || 'Spin to get a category'}</div>
+        </div>
+        <button class="live-spin-btn" id="liveSpinBtn" onclick="spinLiveWheel()"
+          ${s.category ? 'disabled' : ''}>
+          ${s.category ? 'Spun ✓' : 'Spin'}
+        </button>
       </div>
+
+      <!-- SUBMISSIONS -->
       <div class="live-players-title">
-        Submissions (${s.submissions.length}/${eligible.length})
+        Submissions — ${s.submissions.length} of ${eligible.length}
+        ${s.submissions.length === eligible.length && eligible.length > 0 ? ' ✅' : ''}
       </div>
       <div class="live-submissions">
         ${s.submissions.length === 0
-          ? '<div class="live-waiting-subs">Waiting for submissions...</div>'
-          : s.submissions.map((sub,i) => `
-            <div class="live-sub-row ${liveSelectedWinner===i?'winner':''}" onclick="liveSelectWinner(${i})">
+          ? `<div class="live-waiting-subs">${s.category ? 'Waiting for submissions...' : 'Spin first to reveal the category'}</div>`
+          : s.submissions.map((sub, i) => `
+            <div class="live-sub-row ${liveSelectedWinner === i ? 'winner' : ''}" onclick="liveSelectWinner(${i})">
               <div class="live-sub-av">${sub.name[0].toUpperCase()}</div>
               <div style="flex:1">
                 <div class="live-sub-song">${sub.song}</div>
-                <div class="live-sub-player">${sub.name}</div>
+                <div class="live-sub-player">${sub.artist ? sub.artist + ' · ' : ''}${sub.name}</div>
               </div>
               <div class="live-sub-crown">👑</div>
             </div>`).join('')
         }
       </div>
+
+      ${s.category ? `
+      <!-- JUDGE AWARD -->
+      <div class="live-players-title" style="margin-top:4px">🎤 Judge: tap the winner</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+        ${eligible.map(p => {
+          const sub = s.submissions?.find(sub => sub.name === p.name);
+          const isSelected = liveSelectedWinner !== null && s.submissions[liveSelectedWinner]?.name === p.name;
+          return `<button class="live-sub-row ${isSelected ? 'winner' : ''}"
+            style="border:none;width:100%;text-align:left;cursor:pointer"
+            onclick="liveSelectByName('${p.name.replace(/'/g,"\\'")}')">
+            <div class="live-sub-av">${p.name[0].toUpperCase()}</div>
+            <div style="flex:1">
+              <div class="live-sub-song">${sub ? sub.song : '<span style="color:var(--text3);font-weight:400;font-style:italic">No submission yet</span>'}</div>
+              <div class="live-sub-player">${sub?.artist ? sub.artist + ' · ' : ''}${p.name}</div>
+            </div>
+            <div class="live-sub-crown">👑</div>
+          </button>`;
+        }).join('')}
+      </div>
+      <button class="live-award-btn ${liveSelectedWinner !== null ? 'ready' : ''}" onclick="liveAwardPoint()">
+        👑 Award Point & Next Round
+      </button>` : ''}
+
+      <!-- SCOREBOARD -->
       <div class="live-players-title" style="margin-top:16px">Scoreboard</div>
       <div class="live-scoreboard">
-        ${[...(s.players||[])].sort((a,b)=>(s.scores[b.name]||0)-(s.scores[a.name]||0)).map(p=>`
+        ${[...(s.players || [])].sort((a, b) => (s.scores[b.name] || 0) - (s.scores[a.name] || 0)).map(p => `
           <div class="live-score-row">
             <div class="live-score-av">${p.name[0].toUpperCase()}</div>
-            <div class="live-score-name">${p.name}</div>
-            <div class="live-score-pts">${s.scores[p.name]||0}</div>
+            <div class="live-score-name">${p.name}${p.name === judgePlayer.name ? ' 🎤' : ''}</div>
+            <div class="live-score-pts">${s.scores[p.name] || 0}</div>
           </div>`).join('')}
       </div>
-      <button class="live-award-btn ${liveSelectedWinner!==null?'ready':''}" onclick="liveAwardPoint()">
-        👑 Award Point & Next Round
-      </button>
     `;
+
+    // draw wheel after DOM update
+    requestAnimationFrame(() => drawLiveWheel(-1));
   }
 
   if (s.phase === 'ended') {
-    const winner = [...(s.players||[])].sort((a,b)=>(s.scores[b.name]||0)-(s.scores[a.name]||0))[0];
+    const winner = [...(s.players || [])].sort((a, b) => (s.scores[b.name] || 0) - (s.scores[a.name] || 0))[0];
     document.getElementById('hostPanelBody').innerHTML = `
       <div style="text-align:center;padding:40px 0 20px">
         <div style="font-size:52px">🏆</div>
-        <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;margin:12px 0 4px">${winner?.name||'—'}</div>
+        <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;margin:12px 0 4px">${winner?.name || '—'}</div>
         <div style="color:var(--text3);font-size:14px">wins the Aux Wars</div>
       </div>
       <div class="live-players-title">Final Scores</div>
       <div class="live-scoreboard">
-        ${[...(s.players||[])].sort((a,b)=>(s.scores[b.name]||0)-(s.scores[a.name]||0)).map(p=>`
+        ${[...(s.players || [])].sort((a, b) => (s.scores[b.name] || 0) - (s.scores[a.name] || 0)).map(p => `
           <div class="live-score-row">
             <div class="live-score-av">${p.name[0].toUpperCase()}</div>
             <div class="live-score-name">${p.name}</div>
-            <div class="live-score-pts">${s.scores[p.name]||0}</div>
+            <div class="live-score-pts">${s.scores[p.name] || 0}</div>
           </div>`).join('')}
       </div>
-      <button class="live-next-btn" onclick="liveNewGame()">Play Again</button>
+      <button class="live-next-btn" onclick="liveNewGame()">Play Again 🔄</button>
     `;
     playWinFanfare();
   }
@@ -2143,18 +2276,16 @@ function liveAwardPoint() {
   if (!sub) return;
   liveSelectedWinner = null;
   liveState.scores[sub.name] = (liveState.scores[sub.name] || 0) + 1;
-  // check win condition
   if (liveState.scores[sub.name] >= liveState.pointsToWin) {
     liveState.phase = 'ended';
     broadcastState(); renderHostGame(); return;
   }
-  // next round
-  const wheel = getWheelById(activeWheelId);
-  const cats = wheel?.categories || [];
   liveState.round++;
-  liveState.category = cats[Math.floor(Math.random()*cats.length)];
+  liveState.category = '';
   liveState.submissions = [];
   liveState.judgeIndex = (liveState.judgeIndex + 1) % liveState.players.length;
+  liveState.phase = 'spinning';
+  liveWheelAngle = 0;
   broadcastState();
   renderHostGame();
   playLandSound();
@@ -2227,26 +2358,47 @@ function renderPlayerGame() {
   const s = liveState;
   if (s.phase === 'lobby') { renderPlayerWaiting(); return; }
 
-  const mySubmission = (s.submissions||[]).find(sub => sub.name === liveMyName);
+  const mySubmission = (s.submissions || []).find(sub => sub.name === liveMyName);
   const judgePlayer = s.players?.[s.judgeIndex];
   const isJudge = judgePlayer?.name === liveMyName;
   document.getElementById('joinPanelTitle').textContent = `Round ${s.round}`;
 
   if (s.phase === 'ended') {
-    const winner = [...(s.players||[])].sort((a,b)=>(s.scores[b.name]||0)-(s.scores[a.name]||0))[0];
+    const winner = [...(s.players || [])].sort((a, b) => (s.scores[b.name] || 0) - (s.scores[a.name] || 0))[0];
     document.getElementById('joinPanelBody').innerHTML = `
-      <div style="text-align:center;padding:40px 0 20px">
-        <div style="font-size:52px">${winner?.name===liveMyName?'🏆':'🎵'}</div>
-        <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;margin:12px 0 4px">
-          ${winner?.name===liveMyName?'You won!':winner?.name+' wins!'}
+      <div style="text-align:center;padding:40px 0 24px">
+        <div style="font-size:56px;margin-bottom:12px">${winner?.name === liveMyName ? '🏆' : '🎵'}</div>
+        <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;margin-bottom:6px">
+          ${winner?.name === liveMyName ? 'You won!' : winner?.name + ' wins!'}
         </div>
       </div>
+      <div class="live-players-title">Final Scores</div>
       <div class="live-scoreboard">
-        ${[...(s.players||[])].sort((a,b)=>(s.scores[b.name]||0)-(s.scores[a.name]||0)).map(p=>`
+        ${[...(s.players || [])].sort((a, b) => (s.scores[b.name] || 0) - (s.scores[a.name] || 0)).map((p, i) => `
           <div class="live-score-row">
-            <div class="live-score-av">${p.name[0].toUpperCase()}</div>
-            <div class="live-score-name">${p.name}${p.name===liveMyName?' (you)':''}</div>
-            <div class="live-score-pts">${s.scores[p.name]||0}</div>
+            <div class="live-score-av" style="${p.name === liveMyName ? 'background:var(--green);color:#000' : ''}">${['🥇','🥈','🥉'][i] || p.name[0].toUpperCase()}</div>
+            <div class="live-score-name">${p.name}${p.name === liveMyName ? ' (you)' : ''}</div>
+            <div class="live-score-pts">${s.scores[p.name] || 0}</div>
+          </div>`).join('')}
+      </div>
+    `;
+    return;
+  }
+
+  if (s.phase === 'spinning') {
+    document.getElementById('joinPanelBody').innerHTML = `
+      <div style="text-align:center;padding:48px 20px">
+        <div style="font-size:48px;animation:waitBounce 1s ease-in-out infinite;margin-bottom:16px">🎡</div>
+        <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:8px">Host is spinning...</div>
+        <div style="color:var(--text3);font-size:14px">Get ready to pick a song</div>
+      </div>
+      <div class="live-players-title">Scoreboard</div>
+      <div class="live-scoreboard">
+        ${[...(s.players || [])].sort((a, b) => (s.scores[b.name] || 0) - (s.scores[a.name] || 0)).map(p => `
+          <div class="live-score-row">
+            <div class="live-score-av" style="${p.name === liveMyName ? 'background:var(--green);color:#000' : ''}">${p.name[0].toUpperCase()}</div>
+            <div class="live-score-name">${p.name}${p.name === liveMyName ? ' (you)' : ''}${p.name === judgePlayer?.name ? ' 🎤' : ''}</div>
+            <div class="live-score-pts">${s.scores[p.name] || 0}</div>
           </div>`).join('')}
       </div>
     `;
@@ -2254,61 +2406,72 @@ function renderPlayerGame() {
   }
 
   document.getElementById('joinPanelBody').innerHTML = `
-    <div class="live-submit-view">
-      <div class="live-status-bar">
-        <div class="live-status-pill"><div class="live-status-dot"></div> Round ${s.round}</div>
-        <div class="live-status-pill">${isJudge?'🎤 You judge':'🎤 '+judgePlayer?.name}</div>
-      </div>
-      <div class="live-category-banner">
-        <div class="cat-lbl">Category</div>
-        <div class="cat-val">${s.category}</div>
-      </div>
-      ${isJudge
-        ? `<div style="background:rgba(29,185,84,.08);border:1px solid rgba(29,185,84,.2);border-radius:14px;padding:18px;text-align:center">
-            <div style="font-size:28px;margin-bottom:8px">🎤</div>
-            <div style="font-weight:700;font-size:15px;color:var(--green)">You're the judge</div>
-            <div style="color:var(--text3);font-size:13px;margin-top:4px">Wait for everyone to submit, then the host picks the winner.</div>
+    <div class="live-status-bar">
+      <div class="live-status-pill"><div class="live-status-dot"></div> Round ${s.round}</div>
+      <div class="live-status-pill">${isJudge ? '🎤 You judge' : '🎤 ' + judgePlayer?.name}</div>
+    </div>
+    <div class="live-category-banner">
+      <div class="cat-lbl">Category</div>
+      <div class="cat-val">${s.category}</div>
+    </div>
+    ${isJudge
+      ? `<div style="background:rgba(29,185,84,.08);border:1px solid rgba(29,185,84,.25);border-radius:16px;padding:24px;text-align:center">
+          <div style="font-size:32px;margin-bottom:10px">🎤</div>
+          <div style="font-weight:800;font-size:16px;color:var(--green);margin-bottom:6px">You're the judge</div>
+          <div style="color:var(--text3);font-size:13px;line-height:1.6">Everyone is picking their song.<br>The host will show all picks and choose the winner.</div>
+         </div>`
+      : mySubmission
+        ? `<div style="background:rgba(29,185,84,.08);border:1px solid rgba(29,185,84,.25);border-radius:16px;padding:20px;text-align:center">
+            <div style="font-size:28px;margin-bottom:8px">✅</div>
+            <div style="font-weight:700;font-size:15px;color:var(--green);margin-bottom:4px">Submitted!</div>
+            <div style="color:var(--text2);font-size:15px;font-weight:600">"${mySubmission.song}"</div>
+            ${mySubmission.artist ? `<div style="color:var(--text3);font-size:13px;margin-top:3px">by ${mySubmission.artist}</div>` : ''}
+            <div style="color:var(--text3);font-size:12px;margin-top:10px">Only the host can see this — waiting for the judge...</div>
            </div>`
-        : mySubmission
-          ? `<div class="live-submitted-banner show">
-              <p>✅ Submitted!</p>
-              <span>"${mySubmission.song}"</span>
-             </div>`
-          : `<div>
-              <div class="live-submit-label">Your pick:</div>
-              <div class="live-submit-row">
-                <input class="live-submit-inp" id="liveSongInp" placeholder="Song name..." maxlength="80"
-                  onkeydown="if(event.key==='Enter')liveSubmitSong()">
-                <button class="live-submit-btn" onclick="liveSubmitSong()">Submit</button>
-              </div>
-             </div>`
-      }
-      <div style="margin-top:20px">
-        <div class="live-players-title">Scoreboard</div>
-        <div class="live-scoreboard">
-          ${[...(s.players||[])].sort((a,b)=>(s.scores[b.name]||0)-(s.scores[a.name]||0)).map(p=>`
-            <div class="live-score-row">
-              <div class="live-score-av">${p.name[0].toUpperCase()}</div>
-              <div class="live-score-name">${p.name}${p.name===liveMyName?' (you)':''}</div>
-              <div class="live-score-pts">${s.scores[p.name]||0}</div>
-            </div>`).join('')}
-        </div>
+        : `<div style="display:flex;flex-direction:column;gap:10px">
+            <div class="live-submit-label">Your pick for this category:</div>
+            <input class="live-submit-inp" id="liveSongInp" placeholder="Song name..." maxlength="80"
+              onkeydown="if(event.key==='Enter')document.getElementById('liveArtistInp')?.focus()">
+            <input class="live-submit-inp" id="liveArtistInp" placeholder="Artist name... (optional)" maxlength="60"
+              onkeydown="if(event.key==='Enter')liveSubmitSong()">
+            <button class="live-submit-btn" style="width:100%;padding:14px" onclick="liveSubmitSong()">Submit →</button>
+           </div>`
+    }
+    <div style="margin-top:20px">
+      <div class="live-players-title">Scoreboard — ${s.submissions.length}/${Math.max((s.players?.length||1)-1,0)} submitted</div>
+      <div class="live-scoreboard">
+        ${[...(s.players || [])].sort((a, b) => (s.scores[b.name] || 0) - (s.scores[a.name] || 0)).map(p => {
+          const submitted = s.submissions?.find(sub => sub.name === p.name);
+          const isMe = p.name === liveMyName;
+          const isJudgeRow = p.name === judgePlayer?.name;
+          return `<div class="live-score-row">
+            <div class="live-score-av" style="${isMe ? 'background:var(--green);color:#000' : ''}">${p.name[0].toUpperCase()}</div>
+            <div class="live-score-name">
+              ${p.name}${isMe?' (you)':''}${isJudgeRow?' 🎤':''}
+              ${isMe && submitted ? `<span style="display:block;font-size:11px;color:var(--text3);font-style:italic">"${submitted.song}"${submitted.artist?' · '+submitted.artist:''}</span>` : ''}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              ${isJudgeRow ? '' : submitted ? '<span style="font-size:12px;color:var(--green)">✓</span>' : '<span style="font-size:11px;color:var(--text3)">...</span>'}
+              <div class="live-score-pts">${s.scores[p.name] || 0}</div>
+            </div>
+          </div>`;
+        }).join('')}
       </div>
     </div>
   `;
-  setTimeout(()=>document.getElementById('liveSongInp')?.focus(), 100);
+  setTimeout(() => document.getElementById('liveSongInp')?.focus(), 100);
 }
 
 function liveSubmitSong() {
   const song = document.getElementById('liveSongInp')?.value.trim();
-  if (!song) { showToast('Type a song first'); return; }
-  broadcastMsg({ type: 'submission', name: liveMyName, song });
+  const artist = document.getElementById('liveArtistInp')?.value.trim() || '';
+  if (!song) { showToast('Type a song name first'); return; }
+  broadcastMsg({ type: 'submission', name: liveMyName, song, artist });
   playJoinSound();
-  // optimistically show submitted state locally
   if (!liveState) liveState = { phase: 'submitting', round: 1, players: [], scores: {}, submissions: [], judgeIndex: 0, category: '', pointsToWin: 7 };
   if (!liveState.submissions) liveState.submissions = [];
   if (!liveState.submissions.find(s => s.name === liveMyName)) {
-    liveState.submissions.push({ name: liveMyName, song });
+    liveState.submissions.push({ name: liveMyName, song, artist });
   }
   renderPlayerGame();
 }
