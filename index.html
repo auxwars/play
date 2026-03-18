@@ -1948,7 +1948,7 @@ function genCode() {
 
 // ── Panel open/close ──────────────────────────────────────────────
 function openHostPanel() {
-  if (SUPABASE_URL === 'https://qngrfduuulyrvtrmvkad.supabase.co') {
+  if (SUPABASE_URL === 'PASTE_YOUR_SUPABASE_URL_HERE') {
     showToast('Add your Supabase credentials first!'); return;
   }
   liveCode = genCode();
@@ -1968,7 +1968,7 @@ function closeHostPanel() {
   disconnectLive();
 }
 function openJoinPanel() {
-  if (SUPABASE_URL === 'https://qngrfduuulyrvtrmvkad.supabase.co') {
+  if (SUPABASE_URL === 'PASTE_YOUR_SUPABASE_URL_HERE') {
     showToast('Add your Supabase credentials first!'); return;
   }
   renderJoinForm();
